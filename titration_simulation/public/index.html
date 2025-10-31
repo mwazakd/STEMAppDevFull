@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced 3D Titration Simulator</title>
+    <meta name="description" content="Professional 3D titration simulator for STEM education with interactive chemistry simulations">
+    <meta name="keywords" content="chemistry, titration, 3D simulation, STEM education, interactive learning">
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Advanced 3D Titration Simulator">
+    <meta property="og:description" content="Professional 3D titration simulator for STEM education">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://mwazakd.github.io/STEMAppDev/">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Advanced 3D Titration Simulator">
+    <meta name="twitter:description" content="Professional 3D titration simulator for STEM education">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/vite.svg">
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="/src/main.tsx" as="script">
+    
+    <style>
+        /* Loading screen styles */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1e293b 0%, #312e81 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            z-index: 9999;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #06b6d4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .loading-subtext {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <!-- Loading screen -->
+        <div class="loading-screen">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">🧪 Advanced 3D Titration Simulator</div>
+            <div class="loading-subtext">Loading chemistry simulation...</div>
+        </div>
+    </div>
+    
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <script>
+        // Hide loading screen when app loads
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                const loadingScreen = document.querySelector('.loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.style.opacity = '0';
+                    loadingScreen.style.transition = 'opacity 0.5s ease-out';
+                    setTimeout(function() {
+                        loadingScreen.style.display = 'none';
+                    }, 500);
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

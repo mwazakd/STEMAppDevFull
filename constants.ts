@@ -2,6 +2,7 @@
 import type { Subject, Post, User } from './types';
 import { PhysicsIcon, ChemistryIcon, BiologyIcon, MathIcon } from './components/Icons';
 import ProjectileMotionSimulator from './components/simulations/ProjectileMotionSimulator';
+import TitrationSimulatorWrapper from './components/simulations/TitrationSimulatorWrapper';
 
 export const MOCK_USER: User = {
   name: 'Amina Yusuf',
@@ -32,7 +33,7 @@ export const MOCK_SUBJECTS: Subject[] = [
             content: {
               type: 'simulation',
               level: ['Grade 11', 'A-Level'],
-              description: 'This simulation demonstrates how projectiles move under the constant force of gravity. Adjust the initial velocity and launch angle to see how they affect the trajectory, range, and maximum height of the projectile. The yellow target indicates the predicted landing zone based on your inputs.',
+              description: 'This simulation demonstrates how projectiles move under the constant force of gravity.',
               component: ProjectileMotionSimulator,
             }
           },
@@ -66,7 +67,24 @@ export const MOCK_SUBJECTS: Subject[] = [
     id: 'chemistry',
     name: 'Chemistry',
     icon: ChemistryIcon,
-    modules: [],
+    modules: [
+      {
+        id: 'acid-base-titration',
+        title: 'Acid-Base Titration',
+        lessons: [
+          { 
+            id: 'titration-1', 
+            title: 'Acid-Base Titration Lab', 
+            content: {
+              type: 'simulation',
+              level: ['Grade 11', 'A-Level'],
+              description: 'Learn the fundamentals of acid-base titration using virtual burettes and indicators. Explore real-time pH changes and titration curves.',
+              component: TitrationSimulatorWrapper,
+            }
+          },
+        ],
+      },
+    ],
   },
   {
     id: 'biology',
