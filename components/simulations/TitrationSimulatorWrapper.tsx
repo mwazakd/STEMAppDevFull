@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TitrationSimulator from './TitrationSimulator';
 import { Maximize2, Minimize2, Play, Pause, RotateCcw } from 'lucide-react';
 
@@ -12,6 +12,22 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
+
+  // ESC key to exit full screen
+  useEffect(() => {
+    if (!isFullScreen) return;
+
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFullScreen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscKey);
+    return () => {
+      window.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isFullScreen]);
 
   // Full display mode - original implementation
   if (isFullScreen) {
