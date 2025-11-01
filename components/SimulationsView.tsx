@@ -80,7 +80,14 @@ const SimulationsView: React.FC<SimulationsViewProps> = ({ activeSimulationId, o
       </div>
       
       <div className="mt-6">
-        <div className="bg-gray-900 rounded-lg shadow-lg overflow-hidden aspect-video relative">
+        <div 
+          className="bg-gray-900 rounded-lg shadow-lg overflow-hidden relative"
+          style={{ 
+            width: '100%',
+            minHeight: '525px',
+            aspectRatio: '16 / 10'
+          }}
+        >
              <SimulationComponent />
         </div>
       </div>
