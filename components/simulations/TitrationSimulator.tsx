@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, createElement } from 'react';
+import { renderToString } from 'react-dom/server';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Play, Pause, RotateCcw, Info, Beaker } from 'lucide-react';
 import * as THREE from 'three';
@@ -53,9 +54,10 @@ const getIndicatorColor = (pH: number) => {
 
 interface TitrationSimulatorProps {
   isEmbedded?: boolean;
+  onChartOpenChange?: (isOpen: boolean) => void;
 }
 
-export default function TitrationSimulator({ isEmbedded = false }: TitrationSimulatorProps) {
+export default function TitrationSimulator({ isEmbedded = false, onChartOpenChange }: TitrationSimulatorProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -73,7 +75,34 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
   const [showTutorial, setShowTutorial] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [showChart, setShowChart] = useState(false);
+  const [showChartSidebar, setShowChartSidebar] = useState(true); // For PC/tablet sidebar visibility
+  const [chartWidth, setChartWidth] = useState(384); // Default 384px (w-96)
+  const [isResizing, setIsResizing] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const chartResizeRef = useRef<HTMLDivElement>(null);
   const [sceneReady, setSceneReady] = useState(false);
+  
+  // Track window size for responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      // On mobile, hide sidebar; on desktop, show it if it was visible before
+      if (mobile) {
+        setShowChartSidebar(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial check
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Notify parent when chart opens/closes on mobile
+  useEffect(() => {
+    if (isMobile) {
+      onChartOpenChange?.(showChart);
+    }
+  }, [showChart, isMobile, onChartOpenChange]);
   const [autoRotate, setAutoRotate] = useState(true);
   const [buretteStopcockOpen, setBuretteStopcockOpen] = useState(false);
   const [buretteGripWidth, setBuretteGripWidth] = useState(25); // Default to burette diameter grip
@@ -103,6 +132,80 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
   const initialCameraDistanceRef = useRef(18);
   const touchPanModeRef = useRef(false); // Track if two-finger pan (vs pinch zoom)
   const initialTouchCenterRef = useRef({ x: 0, y: 0 });
+  
+  // Chart resize handler for PC/tablet - using ref to avoid re-renders during resize
+  const chartWidthRef = useRef(chartWidth);
+  const rafRef = useRef<number | null>(null);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    chartWidthRef.current = chartWidth;
+  }, [chartWidth]);
+  
+  useEffect(() => {
+    if (isResizing && chartResizeRef.current) {
+      const container = chartResizeRef.current.closest('.flex') as HTMLElement;
+      if (!container) return;
+      
+      const handleMouseMove = (e: MouseEvent) => {
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+        }
+        
+        rafRef.current = requestAnimationFrame(() => {
+          if (!chartResizeRef.current || !container) return;
+          
+          const containerRect = container.getBoundingClientRect();
+          const mouseX = e.clientX;
+          const containerRight = containerRect.right;
+          const newWidth = containerRight - mouseX;
+          
+          // Constrain between 200px and 600px, and ensure it doesn't go off screen
+          const minWidth = 200;
+          const maxWidth = 600;
+          const containerWidth = containerRect.width;
+          const maxAllowedWidth = Math.min(maxWidth, containerWidth - 100); // Leave 100px for canvas minimum
+          
+          const constrainedWidth = Math.max(minWidth, Math.min(maxAllowedWidth, newWidth));
+          
+          // Only update if width actually changed (prevents unnecessary re-renders)
+          if (Math.abs(chartWidthRef.current - constrainedWidth) > 1) {
+            chartWidthRef.current = constrainedWidth;
+            // Directly update DOM to avoid React re-render
+            const chartSidebar = container.querySelector('[data-chart-sidebar]') as HTMLElement;
+            const resizeHandle = chartResizeRef.current;
+            if (chartSidebar) {
+              chartSidebar.style.width = `${constrainedWidth}px`;
+            }
+            if (resizeHandle) {
+              resizeHandle.style.right = `${constrainedWidth}px`;
+            }
+          }
+        });
+      };
+
+      const handleMouseUp = () => {
+        // Update state once when done resizing
+        setChartWidth(chartWidthRef.current);
+        setIsResizing(false);
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+      };
+
+      document.addEventListener('mousemove', handleMouseMove, { passive: true });
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+        }
+      };
+    }
+  }, [isResizing]);
   
   const currentPH = useMemo(() => {
     return calculatePH(solutionConc, solutionVol, solutionType, titrantConc, titrantAdded, titrantType);
@@ -482,8 +585,15 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
       window.addEventListener('resize', handleResize);
       
       // Also observe container for size changes
+      let resizeTimeout: NodeJS.Timeout | null = null;
       const resizeObserver = new ResizeObserver((entries) => {
-        handleResize();
+        // Debounce resize to prevent re-renders during sidebar animations
+        if (resizeTimeout) {
+          clearTimeout(resizeTimeout);
+        }
+        resizeTimeout = setTimeout(() => {
+          handleResize();
+        }, 150); // Wait for sidebar animation to complete (300ms duration)
       });
       if (mountRef.current) {
         resizeObserver.observe(mountRef.current);
@@ -491,6 +601,10 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
       
       // Return cleanup for this initialization
       return () => {
+        if (resizeTimeout) {
+          clearTimeout(resizeTimeout);
+        }
+        resizeObserver.disconnect();
         window.removeEventListener('resize', handleResize);
         if (rendererRef.current && rendererRef.current.domElement) {
           rendererRef.current.domElement.removeEventListener('mousedown', handleMouseDown);
@@ -665,6 +779,13 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
     if (isEmbedded) {
       const guideContainer = document.getElementById('embedded-guide-button-container');
       if (guideContainer) {
+        // Hide guide button on mobile when chart is open
+        if (isMobile && showChart) {
+          guideContainer.style.display = 'none';
+          guideContainer.innerHTML = '';
+          return;
+        }
+        guideContainer.style.display = '';
         guideContainer.innerHTML = '';
         
         const guideBtn = document.createElement('button');
@@ -688,6 +809,13 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
       // For fullscreen mode
       const fullscreenContainer = document.getElementById('fullscreen-guide-button-container');
       if (fullscreenContainer) {
+        // Hide guide button on mobile when chart is open
+        if (isMobile && showChart) {
+          fullscreenContainer.style.display = 'none';
+          fullscreenContainer.innerHTML = '';
+          return;
+        }
+        fullscreenContainer.style.display = '';
         fullscreenContainer.innerHTML = '';
         
         const guideBtn = document.createElement('button');
@@ -708,7 +836,7 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
         };
       }
     }
-  }, [isEmbedded, showTutorial]);
+  }, [isEmbedded, showTutorial, isMobile, showChart]);
 
   // Render embedded controls in wrapper when embedded
   useEffect(() => {
@@ -722,17 +850,23 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
       container.innerHTML = '';
       
       const startBtn = document.createElement('button');
-      startBtn.className = `flex items-center justify-center px-6 py-3 rounded-full font-semibold transition shadow-xl text-white ${isRunning ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`;
+      // Icon-only button matching mobile/tablet style - using lucide-react icons
+      startBtn.className = `flex items-center justify-center w-14 h-14 rounded-full font-semibold transition shadow-xl text-white ${isRunning ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`;
       startBtn.setAttribute('aria-label', isRunning ? 'Pause' : 'Start');
-      startBtn.innerHTML = isRunning 
-        ? '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>'
-        : '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+      // Use lucide-react Play/Pause icons (same as full view)
+      const iconElement = isRunning 
+        ? createElement(Pause, { className: 'w-6 h-6', strokeWidth: 2 })
+        : createElement(Play, { className: 'w-6 h-6', strokeWidth: 2 });
+      startBtn.innerHTML = renderToString(iconElement);
       startBtn.addEventListener('click', toggleDispensing);
       
       const resetBtn = document.createElement('button');
-      resetBtn.className = 'px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-full font-semibold transition shadow-xl';
+      // Icon-only button matching mobile/tablet style - using lucide-react icon
+      resetBtn.className = 'w-14 h-14 bg-gray-600 hover:bg-gray-700 text-white rounded-full font-semibold transition shadow-xl flex items-center justify-center';
       resetBtn.setAttribute('aria-label', 'Reset');
-      resetBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
+      // Use lucide-react RotateCcw icon (same as full view)
+      const resetIcon = createElement(RotateCcw, { className: 'w-5 h-5', strokeWidth: 2 });
+      resetBtn.innerHTML = renderToString(resetIcon);
       resetBtn.addEventListener('click', reset);
       
       container.appendChild(startBtn);
@@ -784,24 +918,11 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
           stopcockOpen={buretteStopcockOpen} // Pass stopcock state to control stream
         />
       )}
-      <div className={`${isEmbedded ? 'hide-in-embedded' : 'hidden lg:block'} bg-black bg-opacity-40 backdrop-blur-md border-b border-cyan-500 border-opacity-30 shadow-lg p-4`}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Beaker className="w-8 h-8 text-cyan-400" />
-            <h1 className="text-3xl font-bold text-white">3D Titration Simulator</h1>
-          </div>
-          <button
-            onClick={() => setShowTutorial(!showTutorial)}
-            className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition shadow-lg"
-          >
-            <Info className="w-4 h-4" />
-            {showTutorial ? 'Hide' : 'Show'} Guide
-          </button>
-        </div>
-      </div>
+      {/* Hide desktop header in full view - use mobile UI instead */}
+      <div className={`hidden`}></div>
       
       {showTutorial && (
-        <div className={`${isEmbedded ? 'hide-in-embedded' : 'hidden lg:block'} bg-yellow-900 bg-opacity-95 backdrop-blur-sm border-b border-yellow-600 p-4 shadow-lg`}>
+        <div className={`${isEmbedded ? 'hide-in-embedded' : 'hidden'} bg-yellow-900 bg-opacity-95 backdrop-blur-sm border-b border-yellow-600 p-4 shadow-lg`}>
           <div className="max-w-7xl mx-auto">
             <h3 className="font-bold text-yellow-100 mb-2 text-lg">Quick Guide:</h3>
             <div className="grid grid-cols-2 gap-4 text-yellow-200 text-sm">
@@ -821,159 +942,21 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
         </div>
       )}
       
-      <div className="flex-1 flex overflow-hidden">
-        {/* Configuration Sidebar - Hidden on mobile, visible on desktop */}
-        <div className={`${isEmbedded ? 'hide-in-embedded' : 'hidden lg:block lg:w-72'} bg-black bg-opacity-50 backdrop-blur-md p-6 overflow-y-auto border-r border-cyan-500 border-opacity-30 shadow-xl ${showConfig && !isEmbedded ? 'block' : ''}`}>
-          <h2 className="text-xl font-bold text-cyan-300 mb-4">Configuration</h2>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-cyan-200 mb-2">
-                Analyte (in beaker)
-              </label>
-              <select
-                value={solutionType}
-                onChange={(e) => setSolutionType(e.target.value)}
-                className="w-full p-2 bg-gray-900 text-white border border-cyan-500 border-opacity-50 rounded-lg focus:border-cyan-400 focus:outline-none"
-                disabled={isRunning || titrantAdded > 0}
-              >
-                <option value="acid">Acid (HCl)</option>
-                <option value="base">Base (NaOH)</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-cyan-200 mb-2">
-                Concentration: {solutionConc.toFixed(2)} M
-              </label>
-              <input
-                type="range"
-                min="0.01"
-                max="1"
-                step="0.01"
-                value={solutionConc}
-                onChange={(e) => setSolutionConc(parseFloat(e.target.value))}
-                className="w-full accent-cyan-500"
-                disabled={isRunning || titrantAdded > 0}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-cyan-200 mb-2">
-                Volume: {solutionVol} mL
-              </label>
-              <input
-                type="range"
-                min="10"
-                max="50"
-                step="5"
-                value={solutionVol}
-                onChange={(e) => setSolutionVol(parseFloat(e.target.value))}
-                className="w-full accent-cyan-500"
-                disabled={isRunning || titrantAdded > 0}
-              />
-            </div>
-            
-            <hr className="border-gray-700 my-4" />
-            
-            <div>
-              <label className="block text-sm font-medium text-cyan-200 mb-2">
-                Titrant (in burette)
-              </label>
-              <select
-                value={titrantType}
-                onChange={(e) => setTitrantType(e.target.value)}
-                className="w-full p-2 bg-gray-900 text-white border border-cyan-500 border-opacity-50 rounded-lg focus:border-cyan-400 focus:outline-none"
-                disabled={isRunning || titrantAdded > 0}
-              >
-                <option value="acid">Acid (HCl)</option>
-                <option value="base">Base (NaOH)</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-cyan-200 mb-2">
-                Concentration: {titrantConc.toFixed(2)} M
-              </label>
-              <input
-                type="range"
-                min="0.01"
-                max="1"
-                step="0.01"
-                value={titrantConc}
-                onChange={(e) => setTitrantConc(parseFloat(e.target.value))}
-                className="w-full accent-cyan-500"
-                disabled={isRunning || titrantAdded > 0}
-              />
-            </div>
-            
-            <div className="bg-indigo-900 bg-opacity-60 p-3 rounded-lg border border-indigo-500 shadow-inner">
-              <p className="text-sm text-cyan-200">
-                <strong>Equivalence Point:</strong> {equivalencePoint} mL
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex gap-2 mt-6">
-            <button
-              onClick={toggleDispensing}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold transition shadow-lg ${
-                isRunning
-                  ? 'bg-red-500 hover:bg-red-600 text-white'
-                  : 'bg-green-500 hover:bg-green-600 text-white'
-              }`}
-            >
-              {isRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-              {isRunning ? 'Pause' : 'Start'}
-            </button>
-            <button
-              onClick={reset}
-              className="px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition shadow-lg"
-            >
-              <RotateCcw className="w-5 h-5" />
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3 mt-6">
-            <div className="bg-cyan-900 bg-opacity-60 p-3 rounded-lg border border-cyan-500 shadow-inner">
-              <p className="text-xs text-cyan-300 mb-1">pH</p>
-              <p className="text-2xl font-bold text-cyan-100">{currentPH.toFixed(2)}</p>
-            </div>
-            <div className="bg-purple-900 bg-opacity-60 p-3 rounded-lg border border-purple-500 shadow-inner">
-              <p className="text-xs text-purple-300 mb-1">Volume Added</p>
-              <p className="text-2xl font-bold text-purple-100">{titrantAdded.toFixed(1)} mL</p>
-            </div>
-          </div>
-          
-          {data.length > 5 && (
-            <div className="mt-4 p-3 bg-green-900 bg-opacity-60 rounded-lg border border-green-500 shadow-inner">
-              <p className="text-sm text-green-200">
-                <strong>Analysis:</strong> {
-                  Math.abs(parseFloat(equivalencePoint) - titrantAdded) < 2
-                    ? 'Near equivalence point!'
-                    : titrantAdded < parseFloat(equivalencePoint)
-                    ? 'Before equivalence point'
-                    : 'Past equivalence point'
-                }
-              </p>
-            </div>
-          )}
-        </div>
-        
-        {/* Main 3D View Area */}
-        <div className="flex-1 relative">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Main 3D View Area - Full width, chart overlays on top */}
+        <div className="flex-1 relative w-full">
           <div ref={mountRef} className="w-full h-full" />
           
-          {/* Mobile App Name - Above Stack */}
-          <div className={`${isEmbedded ? 'force-mobile-ui' : 'lg:hidden'} absolute top-4 left-4 z-10`}>
+          {/* Mobile App Name - Above Stack - Always show in full view */}
+          <div className={`${isEmbedded ? 'force-mobile-ui' : 'force-mobile-ui'} absolute top-4 left-4 z-10`}>
             <div className="bg-black bg-opacity-70 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-sm shadow-lg flex items-center gap-2">
               <Beaker className="w-4 h-4 text-cyan-400" />
               <span className="font-semibold text-xs">3D Titration Simulator</span>
             </div>
           </div>
 
-          {/* Mobile Controls Overlay - Single Stack */}
-          <div className={`${isEmbedded ? 'force-mobile-ui' : 'lg:hidden'} absolute top-16 left-4 z-10`}>
+          {/* Mobile Controls Overlay - Single Stack - Always show in full view */}
+          <div className={`${isEmbedded ? 'force-mobile-ui' : 'force-mobile-ui'} absolute top-16 left-4 z-10`}>
             <div className="flex flex-col gap-2">
               {/* Config Button */}
               <button
@@ -1001,9 +984,19 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
                 </div>
               </div>
               
-              {/* Chart Button */}
+              {/* Chart Button - In embedded mode always opens overlay, in full view PC/Tablet toggles sidebar */}
               <button
-                onClick={() => setShowChart(!showChart)}
+                onClick={() => {
+                  if (isEmbedded || isMobile) {
+                    // Embedded mode or mobile: show overlay
+                    const newState = !showChart;
+                    setShowChart(newState);
+                    onChartOpenChange?.(newState);
+                  } else {
+                    // Full view PC/Tablet: toggle sidebar
+                    setShowChartSidebar(!showChartSidebar);
+                  }
+                }}
                 className="bg-black bg-opacity-70 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-sm shadow-lg"
               >
                 📊 Chart
@@ -1011,22 +1004,11 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
             </div>
           </div>
           
-          {/* Mobile Guide Button - Only shown when not embedded */}
-          {!isEmbedded && (
-            <div className="lg:hidden absolute top-4 right-4 z-20">
-              <button
-                onClick={() => setShowTutorial(!showTutorial)}
-                className="bg-black bg-opacity-80 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-sm shadow-lg flex items-center gap-2"
-              >
-                <Info className="w-4 h-4" />
-                <span>{showTutorial ? 'Hide' : 'Show'} Guide</span>
-              </button>
-            </div>
-          )}
+          {/* Mobile Guide Button - Handled by wrapper component's icon button */}
 
-          {/* Tutorial Overlay - Within canvas container in embedded mode */}
+          {/* Tutorial Overlay - Always within canvas container */}
           {showTutorial && (
-            <div className={`${isEmbedded ? 'absolute inset-0' : 'lg:hidden fixed inset-0'} z-50 bg-black bg-opacity-75 backdrop-blur-sm`}>
+            <div className={`absolute inset-0 z-50 bg-black bg-opacity-75 backdrop-blur-sm`}>
               <div className={`${isEmbedded ? 'h-full' : 'h-full'} bg-black bg-opacity-90 backdrop-blur-md p-4 sm:p-6 overflow-y-auto`}>
                 <div className="flex justify-between items-center mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl font-bold text-cyan-300">Quick Guide</h2>
@@ -1071,93 +1053,90 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
             </div>
           )}
           
-          {/* Mobile Floating Start Button - Overlay on Canvas */}
-          {isEmbedded ? (
+          {/* Floating Start Button - Overlay on Canvas - Only show in full view (not embedded) */}
+          {!isEmbedded && (
             <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center">
               <div className="flex gap-2">
                 <button
                   onClick={toggleDispensing}
-                  className={`flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold transition shadow-xl ${
+                  className={`flex items-center justify-center w-14 h-14 rounded-full font-semibold transition shadow-xl ${
                     isRunning
                       ? 'bg-red-500 hover:bg-red-600 text-white'
                       : 'bg-green-500 hover:bg-green-600 text-white'
                   }`}
+                  aria-label={isRunning ? 'Pause' : 'Start'}
                 >
-                  {isRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                  <span>{isRunning ? 'Pause' : 'Start'}</span>
+                  {isRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
                 </button>
                 <button
                   onClick={reset}
-                  className="px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-full font-semibold transition shadow-xl"
+                  className="w-14 h-14 bg-gray-600 hover:bg-gray-700 text-white rounded-full font-semibold transition shadow-xl flex items-center justify-center"
+                  aria-label="Reset"
                 >
                   <RotateCcw className="w-5 h-5" />
                 </button>
               </div>
             </div>
-          ) : (
-            <div className="lg:hidden fixed bottom-0 left-0 right-0 z-10 pb-safe" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
-              <div className="flex gap-2 justify-center pb-2">
-                <button
-                  onClick={toggleDispensing}
-                  className={`flex items-center justify-center gap-2 px-6 py-4 rounded-full font-semibold transition shadow-xl ${
-                    isRunning
-                      ? 'bg-red-500 hover:bg-red-600 text-white'
-                      : 'bg-green-500 hover:bg-green-600 text-white'
-                  }`}
-                >
-                  {isRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
-                  <span className="text-lg">{isRunning ? 'Pause' : 'Start'}</span>
-                </button>
-                <button
-                  onClick={reset}
-                  className="px-4 py-4 bg-gray-600 hover:bg-gray-700 text-white rounded-full font-semibold transition shadow-xl"
-                >
-                  <RotateCcw className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
           )}
           
-          {/* Desktop Controls */}
-          <div className={`${isEmbedded ? 'hide-in-embedded' : 'hidden lg:block'} absolute top-4 left-4 bg-black bg-opacity-70 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm shadow-lg`}>
-            <p className="font-semibold">🖱️ Drag to rotate • 🖱️ Scroll to zoom</p>
-          </div>
-          
-          <div className={`${isEmbedded ? 'hide-in-embedded' : 'hidden lg:block'} absolute top-4 right-4 flex flex-row gap-2`}>
-            <button
-              onClick={() => setAutoRotate(!autoRotate)}
-              className={`px-4 py-2 rounded-lg font-semibold transition shadow-lg ${
-                autoRotate
-                  ? 'bg-cyan-500 text-white hover:bg-cyan-600'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              {autoRotate ? '🔄 Auto-Rotate ON' : '⏸️ Auto-Rotate OFF'}
-            </button>
-            <div className="bg-black bg-opacity-70 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm shadow-lg">
-              <label className="block text-xs font-medium text-cyan-200 mb-1">
-                Clamp Grip: {buretteGripWidth}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={buretteGripWidth}
-                onChange={(e) => setBuretteGripWidth(parseInt(e.target.value))}
-                className="w-full accent-cyan-500"
-              />
-            </div>
-          </div>
           {!sceneReady && (
             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
               <div className="text-white text-xl">Loading 3D Scene...</div>
             </div>
           )}
+          
+          {/* Show Chart Button - Only visible when chart sidebar is hidden on PC/tablet */}
+          {!showChartSidebar && !isEmbedded && !isMobile && (
+            <button
+              onClick={() => setShowChartSidebar(true)}
+              className="absolute bottom-4 right-4 z-20 bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 transition"
+              aria-label="Show Chart"
+            >
+              <span className="text-lg">📊</span>
+              <span>Show Chart</span>
+            </button>
+          )}
         </div>
         
-        {/* pH Chart Sidebar - Hidden on mobile, visible on desktop */}
-        <div className={`${isEmbedded ? 'hide-in-embedded' : 'hidden lg:block lg:w-96'} bg-black bg-opacity-50 backdrop-blur-md p-6 overflow-y-auto border-l border-cyan-500 border-opacity-30 shadow-xl ${showChart && !isEmbedded ? 'block' : ''}`}>
-          <h2 className="text-xl font-bold text-cyan-300 mb-4">Titration Curve</h2>
+        {/* pH Chart Sidebar - Visible on PC/tablet when toggled, hidden in embedded and mobile */}
+        {/* Make it an overlay to prevent layout reflow and canvas re-rendering */}
+        {showChartSidebar && !isEmbedded && !isMobile && (
+          <>
+            {/* Resize handle - positioned absolutely */}
+            <div
+              ref={chartResizeRef}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsResizing(true);
+              }}
+              className="absolute right-0 top-0 bottom-0 w-1 bg-cyan-500 bg-opacity-30 hover:bg-opacity-60 cursor-col-resize transition-colors z-30"
+              style={{ 
+                right: `${chartWidth}px`,
+                minWidth: '4px'
+              }}
+            >
+              <div className="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-8 cursor-col-resize" />
+            </div>
+            {/* Chart sidebar - positioned absolutely as overlay */}
+            <div 
+              data-chart-sidebar
+              className="absolute top-0 bottom-0 right-0 bg-black bg-opacity-50 backdrop-blur-md p-6 overflow-y-auto border-l border-cyan-500 border-opacity-30 shadow-xl z-20"
+              style={{ 
+                width: `${chartWidth}px`,
+                minWidth: '200px',
+                maxWidth: '600px'
+              }}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-cyan-300">Titration Curve</h2>
+                <button
+                  onClick={() => setShowChartSidebar(false)}
+                  className="text-white hover:text-cyan-400 transition text-xl"
+                  aria-label="Hide Chart"
+                >
+                  ×
+                </button>
+              </div>
           
           {data.length > 0 ? (
             <ResponsiveContainer width="100%" height={400}>
@@ -1213,11 +1192,13 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
             )}
           </div>
         </div>
+          </>
+        )}
       </div>
       
-      {/* Mobile Configuration Overlay */}
+      {/* Mobile Configuration Overlay - Always use mobile overlay style */}
       {showConfig && (
-        <div className={`${isEmbedded ? 'force-mobile-ui absolute' : 'lg:hidden fixed'} inset-0 z-50 bg-black bg-opacity-75 backdrop-blur-sm`}>
+        <div className={`${isEmbedded ? 'force-mobile-ui absolute' : 'force-mobile-ui absolute'} inset-0 z-50 bg-black bg-opacity-75 backdrop-blur-sm`}>
           <div className="h-full bg-black bg-opacity-90 backdrop-blur-md p-4 sm:p-6 overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-cyan-300">Configuration</h2>
@@ -1320,18 +1301,19 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
             <div className="flex gap-2 mt-6">
               <button
                 onClick={toggleDispensing}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold transition shadow-lg ${
+                className={`flex items-center justify-center w-14 h-14 rounded-full font-semibold transition shadow-xl ${
                   isRunning
                     ? 'bg-red-500 hover:bg-red-600 text-white'
                     : 'bg-green-500 hover:bg-green-600 text-white'
                 }`}
+                aria-label={isRunning ? 'Pause' : 'Start'}
               >
-                {isRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                {isRunning ? 'Pause' : 'Start'}
+                {isRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
               </button>
               <button
                 onClick={reset}
-                className="px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition shadow-lg"
+                className="w-14 h-14 bg-gray-600 hover:bg-gray-700 text-white rounded-full font-semibold transition shadow-xl flex items-center justify-center"
+                aria-label="Reset"
               >
                 <RotateCcw className="w-5 h-5" />
               </button>
@@ -1351,15 +1333,21 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
         </div>
       )}
       
-      {/* Mobile Chart Overlay */}
-      {showChart && (
-        <div className={`${isEmbedded ? 'force-mobile-ui absolute' : 'lg:hidden fixed'} inset-0 z-50 bg-black bg-opacity-75 backdrop-blur-sm overflow-hidden`}>
+      {/* Chart Overlay - Shows on mobile or in embedded mode (small view) - High z-index to overlay all buttons */}
+      {showChart && (isMobile || isEmbedded) && (
+        <div 
+          data-mobile-chart-overlay
+          className={`${isEmbedded ? 'force-mobile-ui absolute' : 'fixed'} inset-0 z-[500] bg-black bg-opacity-75 backdrop-blur-sm overflow-hidden`}
+        >
           <div className="h-full bg-black bg-opacity-90 backdrop-blur-md overflow-y-auto overflow-x-hidden">
             <div className="p-4 sm:p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-cyan-300">Titration Curve</h2>
                 <button
-                  onClick={() => setShowChart(false)}
+                  onClick={() => {
+                    setShowChart(false);
+                    onChartOpenChange?.(false);
+                  }}
                   className="text-white text-2xl hover:text-cyan-400"
                 >
                   ×
