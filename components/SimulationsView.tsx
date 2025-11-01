@@ -80,17 +80,21 @@ const SimulationsView: React.FC<SimulationsViewProps> = ({ activeSimulationId, o
       </div>
       
       <div className="mt-6">
-        <div 
-          className="bg-gray-900 rounded-lg shadow-lg overflow-hidden relative"
-          style={{ 
-            width: '100%',
-            minHeight: '525px',
-            aspectRatio: '16 / 10'
-          }}
-        >
+        <div className="bg-gray-900 rounded-lg shadow-lg overflow-hidden aspect-video relative small-view-container">
              <SimulationComponent />
         </div>
       </div>
+      <style>{`
+        /* For screens 576px and below: fix height at 475px (value at 576px width), keep width responsive */
+        @media (max-width: 576px) {
+          .small-view-container {
+            aspect-ratio: auto !important;
+            height: 475px !important;
+            min-height: 475px !important;
+            max-height: 475px !important;
+          }
+        }
+      `}</style>
 
       <div className="bg-white rounded-lg shadow-lg p-6 mt-8">
         <h2 className="text-2xl font-bold text-brand-dark mb-4">About this Simulation</h2>

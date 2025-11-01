@@ -24,7 +24,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             <button className="btn btn-primary bg-[#0056d2] text-white px-6 py-2.5 rounded font-semibold hover:bg-[#0043a8] transition-all border-none cursor-pointer text-sm">
               Sign In
             </button>
-          </nav>
+            </nav>
         </div>
       </header>
 
@@ -37,7 +37,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           <p className="text-xl opacity-95 mb-10 leading-relaxed">
             Explore chemistry, physics, biology, and mathematics with hands-on virtual experiments. Perfect for students, teachers, and lifelong learners.
           </p>
-          <div className="hero-actions flex gap-4 justify-center flex-wrap">
+            <div className="hero-actions flex gap-4 justify-center flex-wrap">
             <button 
               onClick={() => onNavigate('simulationsList')} 
               className="btn btn-primary bg-white text-[#0056d2] px-8 py-4 rounded font-semibold text-base hover:bg-gray-100 transition-all"
@@ -50,29 +50,29 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             >
               Browse Simulations
             </button>
-          </div>
+            </div>
         </div>
       </section>
 
       {/* Stats Bar */}
       <section className="stats-bar bg-white py-10 px-6 border-b border-gray-200">
         <div className="stats-content max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
-          <div className="stat-item">
+            <div className="stat-item">
             <h3 className="text-4xl font-bold text-[#0056d2] mb-2">500+</h3>
-            <p className="text-base text-gray-600">Interactive Simulations</p>
-          </div>
-          <div className="stat-item">
+                <p className="text-base text-gray-600">Interactive Simulations</p>
+            </div>
+            <div className="stat-item">
             <h3 className="text-4xl font-bold text-[#0056d2] mb-2">100K+</h3>
-            <p className="text-base text-gray-600">Active Students</p>
-          </div>
-          <div className="stat-item">
+                <p className="text-base text-gray-600">Active Students</p>
+            </div>
+            <div className="stat-item">
             <h3 className="text-4xl font-bold text-[#0056d2] mb-2">50+</h3>
-            <p className="text-base text-gray-600">Countries Worldwide</p>
-          </div>
-          <div className="stat-item">
+                <p className="text-base text-gray-600">Countries Worldwide</p>
+            </div>
+            <div className="stat-item">
             <h3 className="text-4xl font-bold text-[#0056d2] mb-2">4.8★</h3>
-            <p className="text-base text-gray-600">Average Rating</p>
-          </div>
+                <p className="text-base text-gray-600">Average Rating</p>
+            </div>
         </div>
       </section>
 
@@ -191,19 +191,19 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           />
         </div>
       </section>
-
-      {/* CTA Section */}
+      
+       {/* CTA Section */}
       <section className="cta-section bg-gradient-to-br from-[#0056d2] to-[#0043a8] text-white py-20 px-6 text-center">
         <div className="cta-content max-w-4xl mx-auto">
-          <h2 className="text-4xl font-bold mb-5">Ready to Start Learning?</h2>
+                <h2 className="text-4xl font-bold mb-5">Ready to Start Learning?</h2>
           <p className="text-lg mb-8 opacity-95">
             Join thousands of students and educators using STEM Lab to make science education engaging and effective.
           </p>
           <button className="btn btn-outline bg-transparent border-2 border-white text-white px-8 py-3 rounded font-semibold text-lg hover:bg-white hover:text-[#0056d2] transition-all">
             Create Free Account
           </button>
-        </div>
-      </section>
+            </div>
+        </section>
 
       <Footer />
     </div>
@@ -223,18 +223,18 @@ const SubjectCard: React.FC<{
     className="subject-card bg-white rounded-xl overflow-hidden shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl cursor-pointer no-underline text-inherit"
   >
     <div className={`subject-icon h-[200px] flex items-center justify-center text-8xl bg-gradient-to-br ${gradient}`}>
-      {emoji}
-    </div>
-    <div className="subject-content p-6">
-      <h3 className="text-2xl font-bold mb-3">{title}</h3>
+            {emoji}
+        </div>
+        <div className="subject-content p-6">
+            <h3 className="text-2xl font-bold mb-3">{title}</h3>
       <p className="text-sm text-gray-600 mb-4 leading-relaxed">{description}</p>
       <div className="subject-meta flex gap-4 text-xs text-gray-500">
-        <span>{simCount} Simulations</span>
+                <span>{simCount} Simulations</span>
         <span>•</span>
-        <span>All Levels</span>
-      </div>
+                <span>All Levels</span>
+            </div>
+        </div>
     </div>
-  </div>
 );
 
 const FeatureItem: React.FC<{

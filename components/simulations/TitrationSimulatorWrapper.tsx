@@ -105,17 +105,7 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
           position: absolute;
           inset: 0;
           overflow: hidden;
-          min-height: 525px;
-        }
-        @media (min-width: 640px) {
-          .embedded-titration-wrapper {
-            min-height: 550px;
-          }
-        }
-        @media (min-width: 768px) {
-          .embedded-titration-wrapper {
-            min-height: 550px;
-          }
+          min-height: 475px;
         }
         .embedded-titration-wrapper > div {
           width: 100% !important;
@@ -130,17 +120,7 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
         .embedded-titration-wrapper div[ref] {
           width: 100% !important;
           height: 100% !important;
-          min-height: 525px !important;
-        }
-        @media (min-width: 640px) {
-          .embedded-titration-wrapper div[ref] {
-            min-height: 550px !important;
-          }
-        }
-        @media (min-width: 768px) {
-          .embedded-titration-wrapper div[ref] {
-            min-height: 550px !important;
-          }
+          min-height: 475px !important;
         }
         .embedded-titration-wrapper canvas {
           width: 100% !important;
@@ -154,8 +134,37 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
         .embedded-titration-wrapper .hide-in-embedded {
           display: none !important;
         }
+        
+        /* For screens 576px and below: ensure wrapper respects fixed height */
+        @media (max-width: 576px) {
+          .embedded-titration-wrapper {
+            height: 475px !important;
+            min-height: 475px !important;
+            max-height: 475px !important;
+          }
+          .embedded-titration-wrapper > div {
+            height: 475px !important;
+            min-height: 475px !important;
+            max-height: 475px !important;
+          }
+          .embedded-titration-wrapper .h-screen {
+            height: 475px !important;
+            min-height: 475px !important;
+            max-height: 475px !important;
+          }
+          .embedded-titration-wrapper div[ref] {
+            height: 475px !important;
+            min-height: 475px !important;
+            max-height: 475px !important;
+          }
+          .embedded-titration-wrapper canvas {
+            height: 475px !important;
+            min-height: 475px !important;
+            max-height: 475px !important;
+          }
+        }
       `}</style>
-      <div className="embedded-titration-wrapper" style={{ width: '100%', height: '100%', minHeight: '525px' }}>
+      <div className="embedded-titration-wrapper" style={{ width: '100%', height: '100%', minHeight: '475px' }}>
         <TitrationSimulator isEmbedded={true} onChartOpenChange={handleChartOpenChange} />
       </div>
     </div>

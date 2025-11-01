@@ -231,8 +231,13 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
     const checkAndInit = () => {
       if (!mountRef.current) return;
       const rect = mountRef.current.getBoundingClientRect();
-      const width = rect.width;
-      const height = rect.height;
+      let width = rect.width;
+      let height = rect.height;
+      
+      // For screens ≤576px: fix height at 475px (value at 576px width), keep width responsive
+      if (isEmbedded && window.innerWidth <= 576) {
+        height = 475; // Fixed height for mobile small view
+      }
       
       // Don't initialize if container has zero size
       if (width === 0 || height === 0) {
@@ -246,235 +251,235 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
       
       // Only initialize once per mount
       if (rendererRef.current) return;
-      
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x1a1a2e);
-      sceneRef.current = scene;
-      
-      const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-      camera.position.set(8, 4, 8);
-      camera.lookAt(0, 2, 0);
-      cameraRef.current = camera;
-      
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(width, height);
-      renderer.setPixelRatio(window.devicePixelRatio);
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      if (mountRef.current) {
-        mountRef.current.appendChild(renderer.domElement);
-      }
-      rendererRef.current = renderer;
     
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-      scene.add(ambientLight);
-      
-      const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      mainLight.position.set(10, 15, 10);
-      mainLight.castShadow = true;
-      scene.add(mainLight);
-      
-      const fillLight = new THREE.DirectionalLight(0x4488ff, 0.3);
-      fillLight.position.set(-10, 5, -10);
-      scene.add(fillLight);
-      
-      const benchGeometry = new THREE.BoxGeometry(20, 0.4, 12);
-      const benchMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x6b4423,
-        roughness: 0.8,
-        metalness: 0.1
-      });
-      const bench = new THREE.Mesh(benchGeometry, benchMaterial);
-      bench.position.y = -0.2;
-      bench.receiveShadow = true;
-      scene.add(bench);
-      
-      // Conical flask will be added by the IntegratedGlassmorphismConicalFlask component
-      
-      const standGroup = new THREE.Group();
-      
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+    sceneRef.current = scene;
+    
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(8, 4, 8);
+    camera.lookAt(0, 2, 0);
+    cameraRef.current = camera;
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      if (mountRef.current) {
+    mountRef.current.appendChild(renderer.domElement);
+      }
+    rendererRef.current = renderer;
+    
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    
+    const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    mainLight.position.set(10, 15, 10);
+    mainLight.castShadow = true;
+    scene.add(mainLight);
+    
+    const fillLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+    fillLight.position.set(-10, 5, -10);
+    scene.add(fillLight);
+    
+    const benchGeometry = new THREE.BoxGeometry(20, 0.4, 12);
+    const benchMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x6b4423,
+      roughness: 0.8,
+      metalness: 0.1
+    });
+    const bench = new THREE.Mesh(benchGeometry, benchMaterial);
+    bench.position.y = -0.2;
+    bench.receiveShadow = true;
+    scene.add(bench);
+    
+    // Conical flask will be added by the IntegratedGlassmorphismConicalFlask component
+    
+    const standGroup = new THREE.Group();
+    
       const basePlateGeometry = new THREE.CylinderGeometry(3.5, 3.5, 0.3, 32);
-      const metalMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x444444,
-        roughness: 0.4,
-        metalness: 0.9
-      });
-      const basePlate = new THREE.Mesh(basePlateGeometry, metalMaterial);
-      basePlate.position.y = 0.15;
-      basePlate.castShadow = true;
-      standGroup.add(basePlate);
-      
+    const metalMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x444444,
+      roughness: 0.4,
+      metalness: 0.9
+    });
+    const basePlate = new THREE.Mesh(basePlateGeometry, metalMaterial);
+    basePlate.position.y = 0.15;
+    basePlate.castShadow = true;
+    standGroup.add(basePlate);
+    
       const rodGeometry = new THREE.CylinderGeometry(0.1, 0.1, 10, 16);
-      const verticalRod = new THREE.Mesh(rodGeometry, metalMaterial);
+    const verticalRod = new THREE.Mesh(rodGeometry, metalMaterial);
       verticalRod.position.set(2, 5.1, 0);
-      verticalRod.castShadow = true;
-      standGroup.add(verticalRod);
-      
+    verticalRod.castShadow = true;
+    standGroup.add(verticalRod);
+    
       standGroup.rotation.y = Math.PI / 2;
       standGroup.scale.set(1.2, 1.2, 1.2);
-      
-      scene.add(standGroup);
-      
+    
+    scene.add(standGroup);
+    
       const gridHelper = new THREE.GridHelper(40, 40, 0x444444, 0x222222);
-      gridHelper.position.y = -0.4;
-      scene.add(gridHelper);
-      
+    gridHelper.position.y = -0.4;
+    scene.add(gridHelper);
+    
       // Wait for next frame to ensure scene is fully initialized before setting ready
       requestAnimationFrame(() => {
-        setSceneReady(true);
+    setSceneReady(true);
       });
     
-      const animate = () => {
-        if (sceneRef.current && cameraRef.current && rendererRef.current) {
-          if (autoRotate && !mouseDownRef.current && !userHasRotatedRef.current && !isPanningRef.current) {
-            autoRotateRef.current += 0.002;
-            cameraAngleRef.current.theta = autoRotateRef.current;
-          }
-          
-          // Get current look-at point (dynamic orbit center)
-          const lookAtPoint = panOffsetRef.current;
-          
-          // Update camera position based on current angles and distance around dynamic look-at point
-          const radius = cameraDistanceRef.current;
-          cameraRef.current.position.x = lookAtPoint.x + radius * Math.sin(cameraAngleRef.current.phi) * Math.cos(cameraAngleRef.current.theta);
-          cameraRef.current.position.y = lookAtPoint.y + radius * Math.cos(cameraAngleRef.current.phi);
-          cameraRef.current.position.z = lookAtPoint.z + radius * Math.sin(cameraAngleRef.current.phi) * Math.sin(cameraAngleRef.current.theta);
-          cameraRef.current.lookAt(lookAtPoint);
-          
-          if (glassmorphismBuretteRef.current) {
+    const animate = () => {
+      if (sceneRef.current && cameraRef.current && rendererRef.current) {
+        if (autoRotate && !mouseDownRef.current && !userHasRotatedRef.current && !isPanningRef.current) {
+          autoRotateRef.current += 0.002;
+          cameraAngleRef.current.theta = autoRotateRef.current;
+        }
+        
+        // Get current look-at point (dynamic orbit center)
+        const lookAtPoint = panOffsetRef.current;
+        
+        // Update camera position based on current angles and distance around dynamic look-at point
+        const radius = cameraDistanceRef.current;
+        cameraRef.current.position.x = lookAtPoint.x + radius * Math.sin(cameraAngleRef.current.phi) * Math.cos(cameraAngleRef.current.theta);
+        cameraRef.current.position.y = lookAtPoint.y + radius * Math.cos(cameraAngleRef.current.phi);
+        cameraRef.current.position.z = lookAtPoint.z + radius * Math.sin(cameraAngleRef.current.phi) * Math.sin(cameraAngleRef.current.theta);
+        cameraRef.current.lookAt(lookAtPoint);
+        
+        if (glassmorphismBuretteRef.current) {
             (glassmorphismBuretteRef.current as THREE.Group).position.y = 10.5;
-          }
-          
-          rendererRef.current.render(sceneRef.current, cameraRef.current);
         }
-        animationIdRef.current = requestAnimationFrame(animate);
-      };
-      animate();
-      
-      const handleMouseDown = (e: MouseEvent) => {
-        // Detect middle mouse button (button 1) or Ctrl+Left click for panning
-        if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
-          isPanningRef.current = true;
-          isMiddleMouseRef.current = true;
-          lastMouseRef.current = { x: e.clientX, y: e.clientY };
-          setAutoRotate(false);
-        } else if (e.button === 0) {
-          // Left mouse button - orbit
-          mouseDownRef.current = true;
-          lastMouseRef.current = { x: e.clientX, y: e.clientY };
-          setAutoRotate(false);
-        }
-      };
-      
-      const handleMouseMove = (e: MouseEvent) => {
-        if (isPanningRef.current && cameraRef.current) {
-          // Panning mode - translate look-at point
-          const deltaX = e.clientX - lastMouseRef.current.x;
-          const deltaY = e.clientY - lastMouseRef.current.y;
-          
-          // Calculate camera's right and up vectors for panning
-          const forward = new THREE.Vector3();
-          cameraRef.current.getWorldDirection(forward);
-          const right = new THREE.Vector3();
-          right.crossVectors(forward, cameraRef.current.up).normalize();
-          const up = cameraRef.current.up.clone().normalize();
-          
-          // Pan speed based on distance from look-at point
-          const panSpeed = cameraDistanceRef.current * 0.001;
-          
-          // Update pan offset (look-at point) - REVERSED directions
-          panOffsetRef.current.add(right.multiplyScalar(-deltaX * panSpeed)); // REVERSED
-          panOffsetRef.current.add(up.multiplyScalar(deltaY * panSpeed)); // REVERSED
-          
-          lastMouseRef.current = { x: e.clientX, y: e.clientY };
-        } else if (mouseDownRef.current && cameraRef.current && !isMiddleMouseRef.current) {
-          // Orbit mode - rotate around look-at point (REVERSED AGAIN)
-          const deltaX = e.clientX - lastMouseRef.current.x;
-          const deltaY = e.clientY - lastMouseRef.current.y;
-          
-          cameraAngleRef.current.theta += deltaX * 0.005; // REVERSED AGAIN
-          cameraAngleRef.current.phi -= deltaY * 0.005; // REVERSED AGAIN
-          cameraAngleRef.current.phi = Math.max(0.1, Math.min(Math.PI / 2, cameraAngleRef.current.phi));
-          
-          // Mark that user has manually rotated
-          userHasRotatedRef.current = true;
-          
-          lastMouseRef.current = { x: e.clientX, y: e.clientY };
-        }
-      };
-      
-      const handleMouseUp = () => {
-        if (isMiddleMouseRef.current) {
-          isPanningRef.current = false;
-          isMiddleMouseRef.current = false;
-        } else {
-          mouseDownRef.current = false;
-        }
-      };
-      
-      const handleWheel = (e: WheelEvent) => {
-        e.preventDefault();
-        if (cameraRef.current) {
-          const delta = e.deltaY * 0.01;
-          
-          // Blender-style zoom: change distance along view direction (REVERSED)
-          const zoomSpeed = 0.5;
-          const newDistance = cameraDistanceRef.current + (delta * zoomSpeed); // REVERSED
-          cameraDistanceRef.current = Math.max(5, Math.min(40, newDistance));
-        }
-      };
-      
-      // Touch event handlers for mobile
-      const handleTouchStart = (e: TouchEvent) => {
-        e.preventDefault();
-        touchDownRef.current = true;
         
-        if (e.touches.length === 1) {
-          // Single touch - rotation
-          const touch = e.touches[0];
-          lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
-          touchPanModeRef.current = false;
-          setAutoRotate(false);
-        } else if (e.touches.length === 2) {
-          // Two touches - determine if pan or zoom
-          const touch1 = e.touches[0];
-          const touch2 = e.touches[1];
-          const distance = Math.sqrt(
-            Math.pow(touch2.clientX - touch1.clientX, 2) + 
-            Math.pow(touch2.clientY - touch1.clientY, 2)
-          );
-          initialDistanceRef.current = distance;
-          initialCameraDistanceRef.current = cameraDistanceRef.current;
-          
-          // Calculate initial center point
-          initialTouchCenterRef.current = {
-            x: (touch1.clientX + touch2.clientX) / 2,
-            y: (touch1.clientY + touch2.clientY) / 2
-          };
-          
-          // Reset pan mode - will be determined in handleTouchMove
-          touchPanModeRef.current = false;
-        }
-      };
-      
-      const handleTouchMove = (e: TouchEvent) => {
-        e.preventDefault();
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+      }
+      animationIdRef.current = requestAnimationFrame(animate);
+    };
+    animate();
+    
+    const handleMouseDown = (e: MouseEvent) => {
+      // Detect middle mouse button (button 1) or Ctrl+Left click for panning
+      if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
+        isPanningRef.current = true;
+        isMiddleMouseRef.current = true;
+        lastMouseRef.current = { x: e.clientX, y: e.clientY };
+        setAutoRotate(false);
+      } else if (e.button === 0) {
+        // Left mouse button - orbit
+        mouseDownRef.current = true;
+        lastMouseRef.current = { x: e.clientX, y: e.clientY };
+        setAutoRotate(false);
+      }
+    };
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isPanningRef.current && cameraRef.current) {
+        // Panning mode - translate look-at point
+        const deltaX = e.clientX - lastMouseRef.current.x;
+        const deltaY = e.clientY - lastMouseRef.current.y;
         
-        if (e.touches.length === 1 && touchDownRef.current && cameraRef.current) {
-          // Single touch - rotation (REVERSED AGAIN)
-          const touch = e.touches[0];
-          const deltaX = touch.clientX - lastTouchRef.current.x;
-          const deltaY = touch.clientY - lastTouchRef.current.y;
-          
-          cameraAngleRef.current.theta += deltaX * 0.005; // REVERSED AGAIN
-          cameraAngleRef.current.phi -= deltaY * 0.005; // REVERSED AGAIN
-          cameraAngleRef.current.phi = Math.max(0.1, Math.min(Math.PI / 2, cameraAngleRef.current.phi));
-          
-          // Mark that user has manually rotated
-          userHasRotatedRef.current = true;
-          
-          lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
-        } else if (e.touches.length === 2 && cameraRef.current) {
+        // Calculate camera's right and up vectors for panning
+        const forward = new THREE.Vector3();
+        cameraRef.current.getWorldDirection(forward);
+        const right = new THREE.Vector3();
+        right.crossVectors(forward, cameraRef.current.up).normalize();
+        const up = cameraRef.current.up.clone().normalize();
+        
+        // Pan speed based on distance from look-at point
+        const panSpeed = cameraDistanceRef.current * 0.001;
+        
+        // Update pan offset (look-at point) - REVERSED directions
+        panOffsetRef.current.add(right.multiplyScalar(-deltaX * panSpeed)); // REVERSED
+        panOffsetRef.current.add(up.multiplyScalar(deltaY * panSpeed)); // REVERSED
+        
+        lastMouseRef.current = { x: e.clientX, y: e.clientY };
+      } else if (mouseDownRef.current && cameraRef.current && !isMiddleMouseRef.current) {
+        // Orbit mode - rotate around look-at point (REVERSED AGAIN)
+        const deltaX = e.clientX - lastMouseRef.current.x;
+        const deltaY = e.clientY - lastMouseRef.current.y;
+        
+        cameraAngleRef.current.theta += deltaX * 0.005; // REVERSED AGAIN
+        cameraAngleRef.current.phi -= deltaY * 0.005; // REVERSED AGAIN
+        cameraAngleRef.current.phi = Math.max(0.1, Math.min(Math.PI / 2, cameraAngleRef.current.phi));
+        
+        // Mark that user has manually rotated
+        userHasRotatedRef.current = true;
+        
+        lastMouseRef.current = { x: e.clientX, y: e.clientY };
+      }
+    };
+    
+    const handleMouseUp = () => {
+      if (isMiddleMouseRef.current) {
+        isPanningRef.current = false;
+        isMiddleMouseRef.current = false;
+      } else {
+        mouseDownRef.current = false;
+      }
+    };
+    
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (cameraRef.current) {
+        const delta = e.deltaY * 0.01;
+        
+        // Blender-style zoom: change distance along view direction (REVERSED)
+        const zoomSpeed = 0.5;
+        const newDistance = cameraDistanceRef.current + (delta * zoomSpeed); // REVERSED
+        cameraDistanceRef.current = Math.max(5, Math.min(40, newDistance));
+      }
+    };
+    
+    // Touch event handlers for mobile
+    const handleTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      touchDownRef.current = true;
+      
+      if (e.touches.length === 1) {
+        // Single touch - rotation
+        const touch = e.touches[0];
+        lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
+        touchPanModeRef.current = false;
+        setAutoRotate(false);
+      } else if (e.touches.length === 2) {
+        // Two touches - determine if pan or zoom
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const distance = Math.sqrt(
+          Math.pow(touch2.clientX - touch1.clientX, 2) + 
+          Math.pow(touch2.clientY - touch1.clientY, 2)
+        );
+        initialDistanceRef.current = distance;
+        initialCameraDistanceRef.current = cameraDistanceRef.current;
+        
+        // Calculate initial center point
+        initialTouchCenterRef.current = {
+          x: (touch1.clientX + touch2.clientX) / 2,
+          y: (touch1.clientY + touch2.clientY) / 2
+        };
+        
+        // Reset pan mode - will be determined in handleTouchMove
+        touchPanModeRef.current = false;
+      }
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      
+      if (e.touches.length === 1 && touchDownRef.current && cameraRef.current) {
+        // Single touch - rotation (REVERSED AGAIN)
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - lastTouchRef.current.x;
+        const deltaY = touch.clientY - lastTouchRef.current.y;
+        
+        cameraAngleRef.current.theta += deltaX * 0.005; // REVERSED AGAIN
+        cameraAngleRef.current.phi -= deltaY * 0.005; // REVERSED AGAIN
+        cameraAngleRef.current.phi = Math.max(0.1, Math.min(Math.PI / 2, cameraAngleRef.current.phi));
+        
+        // Mark that user has manually rotated
+        userHasRotatedRef.current = true;
+        
+        lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
+      } else if (e.touches.length === 2 && cameraRef.current) {
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
         const distance = Math.sqrt(
@@ -546,44 +551,50 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
       }
     };
     
-      const handleTouchEnd = (e: TouchEvent) => {
-        e.preventDefault();
-        touchDownRef.current = false;
-        touchPanModeRef.current = false;
-        isPanningRef.current = false;
-      };
+    const handleTouchEnd = (e: TouchEvent) => {
+      e.preventDefault();
+      touchDownRef.current = false;
+      touchPanModeRef.current = false;
+      isPanningRef.current = false;
+    };
     
-      // Prevent context menu on middle mouse button
-      renderer.domElement.addEventListener('contextmenu', (e) => {
-        if (isMiddleMouseRef.current) {
-          e.preventDefault();
-        }
-      });
-      
-      renderer.domElement.addEventListener('mousedown', handleMouseDown);
-      renderer.domElement.addEventListener('mousemove', handleMouseMove);
-      renderer.domElement.addEventListener('mouseup', handleMouseUp);
-      renderer.domElement.addEventListener('wheel', handleWheel);
-      
-      // Add touch event listeners
-      renderer.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
-      renderer.domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
-      renderer.domElement.addEventListener('touchend', handleTouchEnd, { passive: false });
-      
-      const handleResize = () => {
-        if (mountRef.current && cameraRef.current && rendererRef.current) {
+    // Prevent context menu on middle mouse button
+    renderer.domElement.addEventListener('contextmenu', (e) => {
+      if (isMiddleMouseRef.current) {
+        e.preventDefault();
+      }
+    });
+    
+    renderer.domElement.addEventListener('mousedown', handleMouseDown);
+    renderer.domElement.addEventListener('mousemove', handleMouseMove);
+    renderer.domElement.addEventListener('mouseup', handleMouseUp);
+    renderer.domElement.addEventListener('wheel', handleWheel);
+    
+    // Add touch event listeners
+    renderer.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+    renderer.domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+    renderer.domElement.addEventListener('touchend', handleTouchEnd, { passive: false });
+    
+    const handleResize = () => {
+      if (mountRef.current && cameraRef.current && rendererRef.current) {
           const rect = mountRef.current.getBoundingClientRect();
-          const w = rect.width;
-          const h = rect.height;
-          if (w > 0 && h > 0) {
-            cameraRef.current.aspect = w / h;
-            cameraRef.current.updateProjectionMatrix();
-            rendererRef.current.setSize(w, h);
+          let w = rect.width;
+          let h = rect.height;
+          
+          // For screens ≤576px: fix height at 500px (value at 576px width), keep width responsive
+          if (isEmbedded && window.innerWidth <= 576) {
+            h = 500; // Fixed height for mobile small view
           }
-        }
-      };
-      window.addEventListener('resize', handleResize);
-      
+          
+          if (w > 0 && h > 0) {
+        cameraRef.current.aspect = w / h;
+        cameraRef.current.updateProjectionMatrix();
+        rendererRef.current.setSize(w, h);
+          }
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    
       // Also observe container for size changes
       let resizeTimeout: NodeJS.Timeout | null = null;
       const resizeObserver = new ResizeObserver((entries) => {
@@ -600,12 +611,12 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
       }
       
       // Return cleanup for this initialization
-      return () => {
+    return () => {
         if (resizeTimeout) {
           clearTimeout(resizeTimeout);
         }
         resizeObserver.disconnect();
-        window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', handleResize);
         if (rendererRef.current && rendererRef.current.domElement) {
           rendererRef.current.domElement.removeEventListener('mousedown', handleMouseDown);
           rendererRef.current.domElement.removeEventListener('mousemove', handleMouseMove);
@@ -616,12 +627,12 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
           rendererRef.current.domElement.removeEventListener('touchend', handleTouchEnd);
         }
         resizeObserver.disconnect();
-        if (animationIdRef.current) {
-          cancelAnimationFrame(animationIdRef.current);
-        }
+      if (animationIdRef.current) {
+        cancelAnimationFrame(animationIdRef.current);
+      }
         if (mountRef.current && rendererRef.current && rendererRef.current.domElement && mountRef.current.contains(rendererRef.current.domElement)) {
           mountRef.current.removeChild(rendererRef.current.domElement);
-        }
+      }
         if (rendererRef.current) {
           rendererRef.current.dispose();
         }
@@ -1057,32 +1068,32 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
           {!isEmbedded && (
             <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center">
               <div className="flex gap-2">
-                <button
-                  onClick={toggleDispensing}
+              <button
+                onClick={toggleDispensing}
                   className={`flex items-center justify-center w-14 h-14 rounded-full font-semibold transition shadow-xl ${
-                    isRunning
-                      ? 'bg-red-500 hover:bg-red-600 text-white'
-                      : 'bg-green-500 hover:bg-green-600 text-white'
-                  }`}
+                  isRunning
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-green-500 hover:bg-green-600 text-white'
+                }`}
                   aria-label={isRunning ? 'Pause' : 'Start'}
-                >
-                  {isRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
-                </button>
-                <button
-                  onClick={reset}
+              >
+                {isRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+              </button>
+              <button
+                onClick={reset}
                   className="w-14 h-14 bg-gray-600 hover:bg-gray-700 text-white rounded-full font-semibold transition shadow-xl flex items-center justify-center"
                   aria-label="Reset"
-                >
+              >
                   <RotateCcw className="w-5 h-5" />
-                </button>
-              </div>
+              </button>
             </div>
+          </div>
           )}
           
           {!sceneReady && (
             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
               <div className="text-white text-xl">Loading 3D Scene...</div>
-            </div>
+          </div>
           )}
           
           {/* Show Chart Button - Only visible when chart sidebar is hidden on PC/tablet */}
@@ -1096,7 +1107,7 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
               <span>Show Chart</span>
             </button>
           )}
-        </div>
+            </div>
         
         {/* pH Chart Sidebar - Visible on PC/tablet when toggled, hidden in embedded and mobile */}
         {/* Make it an overlay to prevent layout reflow and canvas re-rendering */}
@@ -1116,7 +1127,7 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
               }}
             >
               <div className="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-8 cursor-col-resize" />
-            </div>
+          </div>
             {/* Chart sidebar - positioned absolutely as overlay */}
             <div 
               data-chart-sidebar
@@ -1136,7 +1147,7 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
                 >
                   ×
                 </button>
-              </div>
+        </div>
           
           {data.length > 0 ? (
             <ResponsiveContainer width="100%" height={400}>
@@ -1341,64 +1352,64 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
         >
           <div className="h-full bg-black bg-opacity-90 backdrop-blur-md overflow-y-auto overflow-x-hidden">
             <div className="p-4 sm:p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-cyan-300">Titration Curve</h2>
-                <button
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-cyan-300">Titration Curve</h2>
+              <button
                   onClick={() => {
                     setShowChart(false);
                     onChartOpenChange?.(false);
                   }}
-                  className="text-white text-2xl hover:text-cyan-400"
-                >
-                  ×
-                </button>
-              </div>
-              
-              {data.length > 0 ? (
+                className="text-white text-2xl hover:text-cyan-400"
+              >
+                ×
+              </button>
+            </div>
+            
+            {data.length > 0 ? (
                 <div className="w-full" style={{ height: '300px', minHeight: '300px' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={data}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                      <XAxis
-                        dataKey="volume"
-                        label={{ value: 'Volume (mL)', position: 'insideBottom', offset: -5, fill: '#fff' }}
-                        stroke="#fff"
-                        tick={{ fill: '#fff' }}
-                      />
-                      <YAxis
-                        domain={[0, 14]}
-                        label={{ value: 'pH', angle: -90, position: 'insideLeft', fill: '#fff' }}
-                        stroke="#fff"
-                        tick={{ fill: '#fff' }}
-                      />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
-                        labelStyle={{ color: '#fff' }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="pH"
-                        stroke="#06b6d4"
-                        strokeWidth={3}
-                        dot={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                <LineChart data={data}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                  <XAxis
+                    dataKey="volume"
+                    label={{ value: 'Volume (mL)', position: 'insideBottom', offset: -5, fill: '#fff' }}
+                    stroke="#fff"
+                    tick={{ fill: '#fff' }}
+                  />
+                  <YAxis
+                    domain={[0, 14]}
+                    label={{ value: 'pH', angle: -90, position: 'insideLeft', fill: '#fff' }}
+                    stroke="#fff"
+                    tick={{ fill: '#fff' }}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
+                    labelStyle={{ color: '#fff' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="pH"
+                    stroke="#06b6d4"
+                    strokeWidth={3}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
                 </div>
-              ) : (
-                <div className="h-64 flex items-center justify-center text-gray-400 border border-gray-600 rounded-lg">
-                  Start the titration to see the curve
-                </div>
-              )}
-              
-              <div className="mt-6 space-y-3">
-                <div className="bg-gray-800 bg-opacity-60 p-3 rounded-lg border border-gray-600">
-                  <h3 className="text-sm font-semibold text-cyan-300 mb-2">Key Points:</h3>
-                  <ul className="text-xs text-gray-300 space-y-1">
-                    <li>• Steep curve = equivalence point region</li>
-                    <li>• Color change occurs near pH 8-10</li>
-                    <li>• Buffer region shows gradual pH change</li>
-                  </ul>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-400 border border-gray-600 rounded-lg">
+                Start the titration to see the curve
+              </div>
+            )}
+            
+            <div className="mt-6 space-y-3">
+              <div className="bg-gray-800 bg-opacity-60 p-3 rounded-lg border border-gray-600">
+                <h3 className="text-sm font-semibold text-cyan-300 mb-2">Key Points:</h3>
+                <ul className="text-xs text-gray-300 space-y-1">
+                  <li>• Steep curve = equivalence point region</li>
+                  <li>• Color change occurs near pH 8-10</li>
+                  <li>• Buffer region shows gradual pH change</li>
+                </ul>
                 </div>
               </div>
             </div>
