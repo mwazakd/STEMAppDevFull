@@ -658,6 +658,99 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
     // Reset burette liquid level ref to start at 0 mark (full)
     buretteLiquidLevelRef.current = 100;
   };
+
+  // Render guide button in wrapper (embedded mode) or fullscreen container
+  useEffect(() => {
+    // For embedded mode
+    if (isEmbedded) {
+      const guideContainer = document.getElementById('embedded-guide-button-container');
+      if (guideContainer) {
+        guideContainer.innerHTML = '';
+        
+        const guideBtn = document.createElement('button');
+        guideBtn.className = 'text-white px-3 py-2 rounded-lg text-sm shadow-lg flex items-center justify-center hover:opacity-80 transition';
+        guideBtn.setAttribute('aria-label', showTutorial ? 'Hide Guide' : 'Show Guide');
+        guideBtn.innerHTML = `
+          <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
+        `;
+        guideBtn.addEventListener('click', () => setShowTutorial(!showTutorial));
+        
+        guideContainer.appendChild(guideBtn);
+        
+        return () => {
+          guideBtn.removeEventListener('click', () => setShowTutorial(!showTutorial));
+          if (guideContainer) guideContainer.innerHTML = '';
+        };
+      }
+    } else {
+      // For fullscreen mode
+      const fullscreenContainer = document.getElementById('fullscreen-guide-button-container');
+      if (fullscreenContainer) {
+        fullscreenContainer.innerHTML = '';
+        
+        const guideBtn = document.createElement('button');
+        guideBtn.className = 'text-white px-3 py-2 rounded-lg text-sm shadow-lg flex items-center justify-center hover:opacity-80 transition';
+        guideBtn.setAttribute('aria-label', showTutorial ? 'Hide Guide' : 'Show Guide');
+        guideBtn.innerHTML = `
+          <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
+        `;
+        guideBtn.addEventListener('click', () => setShowTutorial(!showTutorial));
+        
+        fullscreenContainer.appendChild(guideBtn);
+        
+        return () => {
+          guideBtn.removeEventListener('click', () => setShowTutorial(!showTutorial));
+          if (fullscreenContainer) fullscreenContainer.innerHTML = '';
+        };
+      }
+    }
+  }, [isEmbedded, showTutorial]);
+
+  // Render embedded controls in wrapper when embedded
+  useEffect(() => {
+    if (!isEmbedded) return;
+    
+    const container = document.getElementById('embedded-controls-container');
+    if (!container) return;
+    
+    // Create React portal content
+    const renderButtons = () => {
+      container.innerHTML = '';
+      
+      const startBtn = document.createElement('button');
+      startBtn.className = `flex items-center justify-center px-6 py-3 rounded-full font-semibold transition shadow-xl text-white ${isRunning ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`;
+      startBtn.setAttribute('aria-label', isRunning ? 'Pause' : 'Start');
+      startBtn.innerHTML = isRunning 
+        ? '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>'
+        : '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+      startBtn.addEventListener('click', toggleDispensing);
+      
+      const resetBtn = document.createElement('button');
+      resetBtn.className = 'px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-full font-semibold transition shadow-xl';
+      resetBtn.setAttribute('aria-label', 'Reset');
+      resetBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
+      resetBtn.addEventListener('click', reset);
+      
+      container.appendChild(startBtn);
+      container.appendChild(resetBtn);
+      
+      return () => {
+        startBtn.removeEventListener('click', toggleDispensing);
+        resetBtn.removeEventListener('click', reset);
+      };
+    };
+    
+    const cleanup = renderButtons();
+    
+    return () => {
+      if (cleanup) cleanup();
+      if (container) container.innerHTML = '';
+    };
+  }, [isEmbedded, isRunning]);
   
   // Memoize position vectors to prevent unnecessary re-renders
   const burettePosition = useMemo(() => new THREE.Vector3(0, 8.5, 0), []);
@@ -918,26 +1011,28 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
             </div>
           </div>
           
-          {/* Mobile Guide Button */}
-          <div className={`${isEmbedded ? 'force-mobile-ui' : 'lg:hidden'} absolute top-4 right-4 z-20`}>
-            <button
-              onClick={() => setShowTutorial(!showTutorial)}
-              className="bg-black bg-opacity-80 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-sm shadow-lg flex items-center gap-2"
-            >
-              <Info className="w-4 h-4" />
-              <span>{showTutorial ? 'Hide' : 'Show'} Guide</span>
-            </button>
-          </div>
+          {/* Mobile Guide Button - Only shown when not embedded */}
+          {!isEmbedded && (
+            <div className="lg:hidden absolute top-4 right-4 z-20">
+              <button
+                onClick={() => setShowTutorial(!showTutorial)}
+                className="bg-black bg-opacity-80 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-sm shadow-lg flex items-center gap-2"
+              >
+                <Info className="w-4 h-4" />
+                <span>{showTutorial ? 'Hide' : 'Show'} Guide</span>
+              </button>
+            </div>
+          )}
 
-          {/* Mobile Tutorial Overlay */}
+          {/* Tutorial Overlay - Within canvas container in embedded mode */}
           {showTutorial && (
-            <div className={`${isEmbedded ? 'force-mobile-ui' : 'lg:hidden'} fixed inset-0 z-50 bg-black bg-opacity-75 backdrop-blur-sm`}>
-              <div className="h-full bg-black bg-opacity-90 backdrop-blur-md p-6 overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-cyan-300">Quick Guide</h2>
+            <div className={`${isEmbedded ? 'absolute inset-0' : 'lg:hidden fixed inset-0'} z-50 bg-black bg-opacity-75 backdrop-blur-sm`}>
+              <div className={`${isEmbedded ? 'h-full' : 'h-full'} bg-black bg-opacity-90 backdrop-blur-md p-4 sm:p-6 overflow-y-auto`}>
+                <div className="flex justify-between items-center mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-cyan-300">Quick Guide</h2>
                   <button
                     onClick={() => setShowTutorial(false)}
-                    className="text-white text-2xl hover:text-cyan-400"
+                    className="text-white text-xl sm:text-2xl hover:text-cyan-400 transition"
                   >
                     ×
                   </button>
@@ -976,35 +1071,59 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
             </div>
           )}
           
-          {/* Mobile Floating Start Button */}
-          <div className={`${isEmbedded ? 'force-mobile-ui mobile-start-button' : 'lg:hidden'} fixed bottom-0 left-0 right-0 z-10 pb-safe`} style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
-            <div className="flex gap-2 justify-center pb-2">
-              <button
-                onClick={toggleDispensing}
-                className={`flex items-center justify-center gap-2 px-6 py-4 rounded-full font-semibold transition shadow-xl ${
-                  isRunning
-                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                    : 'bg-green-500 hover:bg-green-600 text-white'
-                }`}
-              >
-                {isRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
-                <span className="text-lg">{isRunning ? 'Pause' : 'Start'}</span>
-              </button>
-              <button
-                onClick={reset}
-                className="px-4 py-4 bg-gray-600 hover:bg-gray-700 text-white rounded-full font-semibold transition shadow-xl"
-              >
-                <RotateCcw className="w-6 h-6" />
-              </button>
+          {/* Mobile Floating Start Button - Overlay on Canvas */}
+          {isEmbedded ? (
+            <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center">
+              <div className="flex gap-2">
+                <button
+                  onClick={toggleDispensing}
+                  className={`flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold transition shadow-xl ${
+                    isRunning
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : 'bg-green-500 hover:bg-green-600 text-white'
+                  }`}
+                >
+                  {isRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                  <span>{isRunning ? 'Pause' : 'Start'}</span>
+                </button>
+                <button
+                  onClick={reset}
+                  className="px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-full font-semibold transition shadow-xl"
+                >
+                  <RotateCcw className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="lg:hidden fixed bottom-0 left-0 right-0 z-10 pb-safe" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+              <div className="flex gap-2 justify-center pb-2">
+                <button
+                  onClick={toggleDispensing}
+                  className={`flex items-center justify-center gap-2 px-6 py-4 rounded-full font-semibold transition shadow-xl ${
+                    isRunning
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : 'bg-green-500 hover:bg-green-600 text-white'
+                  }`}
+                >
+                  {isRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+                  <span className="text-lg">{isRunning ? 'Pause' : 'Start'}</span>
+                </button>
+                <button
+                  onClick={reset}
+                  className="px-4 py-4 bg-gray-600 hover:bg-gray-700 text-white rounded-full font-semibold transition shadow-xl"
+                >
+                  <RotateCcw className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+          )}
           
           {/* Desktop Controls */}
           <div className={`${isEmbedded ? 'hide-in-embedded' : 'hidden lg:block'} absolute top-4 left-4 bg-black bg-opacity-70 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm shadow-lg`}>
             <p className="font-semibold">🖱️ Drag to rotate • 🖱️ Scroll to zoom</p>
           </div>
           
-          <div className={`${isEmbedded ? 'hide-in-embedded' : 'hidden lg:block'} absolute top-4 right-4 flex flex-col gap-2`}>
+          <div className={`${isEmbedded ? 'hide-in-embedded' : 'hidden lg:block'} absolute top-4 right-4 flex flex-row gap-2`}>
             <button
               onClick={() => setAutoRotate(!autoRotate)}
               className={`px-4 py-2 rounded-lg font-semibold transition shadow-lg ${
@@ -1098,8 +1217,8 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
       
       {/* Mobile Configuration Overlay */}
       {showConfig && (
-        <div className={`${isEmbedded ? 'force-mobile-ui' : 'lg:hidden'} fixed inset-0 z-50 bg-black bg-opacity-75 backdrop-blur-sm`}>
-          <div className="h-full bg-black bg-opacity-90 backdrop-blur-md p-6 overflow-y-auto">
+        <div className={`${isEmbedded ? 'force-mobile-ui absolute' : 'lg:hidden fixed'} inset-0 z-50 bg-black bg-opacity-75 backdrop-blur-sm`}>
+          <div className="h-full bg-black bg-opacity-90 backdrop-blur-md p-4 sm:p-6 overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-cyan-300">Configuration</h2>
               <button
@@ -1234,61 +1353,65 @@ export default function TitrationSimulator({ isEmbedded = false }: TitrationSimu
       
       {/* Mobile Chart Overlay */}
       {showChart && (
-        <div className={`${isEmbedded ? 'force-mobile-ui' : 'lg:hidden'} fixed inset-0 z-50 bg-black bg-opacity-75 backdrop-blur-sm`}>
-          <div className="h-full bg-black bg-opacity-90 backdrop-blur-md p-6 overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-cyan-300">Titration Curve</h2>
-              <button
-                onClick={() => setShowChart(false)}
-                className="text-white text-2xl hover:text-cyan-400"
-              >
-                ×
-              </button>
-            </div>
-            
-            {data.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                  <XAxis
-                    dataKey="volume"
-                    label={{ value: 'Volume (mL)', position: 'insideBottom', offset: -5, fill: '#fff' }}
-                    stroke="#fff"
-                    tick={{ fill: '#fff' }}
-                  />
-                  <YAxis
-                    domain={[0, 14]}
-                    label={{ value: 'pH', angle: -90, position: 'insideLeft', fill: '#fff' }}
-                    stroke="#fff"
-                    tick={{ fill: '#fff' }}
-                  />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
-                    labelStyle={{ color: '#fff' }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="pH"
-                    stroke="#06b6d4"
-                    strokeWidth={3}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-64 flex items-center justify-center text-gray-400 border border-gray-600 rounded-lg">
-                Start the titration to see the curve
+        <div className={`${isEmbedded ? 'force-mobile-ui absolute' : 'lg:hidden fixed'} inset-0 z-50 bg-black bg-opacity-75 backdrop-blur-sm overflow-hidden`}>
+          <div className="h-full bg-black bg-opacity-90 backdrop-blur-md overflow-y-auto overflow-x-hidden">
+            <div className="p-4 sm:p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-cyan-300">Titration Curve</h2>
+                <button
+                  onClick={() => setShowChart(false)}
+                  className="text-white text-2xl hover:text-cyan-400"
+                >
+                  ×
+                </button>
               </div>
-            )}
-            
-            <div className="mt-6 space-y-3">
-              <div className="bg-gray-800 bg-opacity-60 p-3 rounded-lg border border-gray-600">
-                <h3 className="text-sm font-semibold text-cyan-300 mb-2">Key Points:</h3>
-                <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• Steep curve = equivalence point region</li>
-                  <li>• Color change occurs near pH 8-10</li>
-                  <li>• Buffer region shows gradual pH change</li>
-                </ul>
+              
+              {data.length > 0 ? (
+                <div className="w-full" style={{ height: '300px', minHeight: '300px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={data}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                      <XAxis
+                        dataKey="volume"
+                        label={{ value: 'Volume (mL)', position: 'insideBottom', offset: -5, fill: '#fff' }}
+                        stroke="#fff"
+                        tick={{ fill: '#fff' }}
+                      />
+                      <YAxis
+                        domain={[0, 14]}
+                        label={{ value: 'pH', angle: -90, position: 'insideLeft', fill: '#fff' }}
+                        stroke="#fff"
+                        tick={{ fill: '#fff' }}
+                      />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
+                        labelStyle={{ color: '#fff' }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="pH"
+                        stroke="#06b6d4"
+                        strokeWidth={3}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-64 flex items-center justify-center text-gray-400 border border-gray-600 rounded-lg">
+                  Start the titration to see the curve
+                </div>
+              )}
+              
+              <div className="mt-6 space-y-3">
+                <div className="bg-gray-800 bg-opacity-60 p-3 rounded-lg border border-gray-600">
+                  <h3 className="text-sm font-semibold text-cyan-300 mb-2">Key Points:</h3>
+                  <ul className="text-xs text-gray-300 space-y-1">
+                    <li>• Steep curve = equivalence point region</li>
+                    <li>• Color change occurs near pH 8-10</li>
+                    <li>• Buffer region shows gradual pH change</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>

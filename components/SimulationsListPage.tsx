@@ -175,10 +175,10 @@ const SimulationsListPage: React.FC<SimulationsListPageProps> = ({ onSelectSimul
 };
 
 const FilterGroup: React.FC<{label: string, children: React.ReactNode}> = ({ label, children }) => (
-  <div className="flex flex-col gap-2">
-    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">{label}</label>
-    {children}
-  </div>
+    <div className="flex flex-col gap-2">
+        <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">{label}</label>
+        {children}
+    </div>
 );
 
 const SimCard: React.FC<{
@@ -186,20 +186,20 @@ const SimCard: React.FC<{
   onClick: () => void;
   viewMode: 'grid' | 'list';
 }> = ({ simulation, onClick, viewMode }) => {
-  const { content } = simulation;
+    const { content } = simulation;
   const difficulty = content?.level?.includes('A-Level') || content?.level?.includes('Intermediate') 
     ? 'Intermediate' 
     : content?.level?.includes('Advanced') 
     ? 'Advanced' 
     : 'Beginner';
   
-  const difficultyClass = {
+    const difficultyClass = {
     'Beginner': 'text-[#059669]',
     'Intermediate': 'text-[#d97706]',
     'Advanced': 'text-[#dc2626]'
   }[difficulty] || 'text-[#059669]';
 
-  const subjectGradient = {
+    const subjectGradient = {
     'physics': 'from-[#f093fb] to-[#f5576c]',
     'chemistry': 'from-[#0056d2] to-[#00c6ff]',
     'biology': 'from-[#4facfe] to-[#00f2fe]',
@@ -208,7 +208,7 @@ const SimCard: React.FC<{
 
   const categoryName = simulation.subjectName || 'General';
 
-  return (
+    return (
     <div 
       onClick={onClick} 
       className={`sim-card bg-white rounded-lg overflow-hidden shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer ${
@@ -217,9 +217,9 @@ const SimCard: React.FC<{
     >
       <div className={`sim-thumbnail ${viewMode === 'list' ? 'w-64 flex-shrink-0' : 'w-full'} h-44 bg-gradient-to-br ${subjectGradient} relative`}>
         <div className={`difficulty-badge absolute top-3 right-3 bg-white/95 px-3 py-1 rounded-full text-xs font-semibold ${difficultyClass}`}>
-          {difficulty}
-        </div>
-      </div>
+                    {difficulty}
+                </div>
+            </div>
       <div className="sim-content p-5 flex-1">
         <div className="sim-category text-xs font-bold text-[#0056d2] uppercase tracking-wide mb-2">
           {categoryName}
@@ -236,9 +236,9 @@ const SimCard: React.FC<{
           </div>
           <div className="sim-meta-item flex items-center gap-1">⏱ 20 min</div>
           <div className="sim-meta-item flex items-center gap-1">👁 12.5k</div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
   );
 };
 
