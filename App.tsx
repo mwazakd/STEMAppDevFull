@@ -170,20 +170,26 @@ const App: React.FC = () => {
       />
       {isSidebarOpen && window.innerWidth < 1024 && (
         <div 
-          className="fixed inset-0 bg-black/50 z-[150]"
+          className="fixed top-16 left-0 right-0 bottom-0 bg-black/50 z-[150]"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
+      {/* On desktop, sidebar slides content to the side but doesn't overlay */}
+      {/* On mobile, sidebar overlays content with backdrop */}
+      <Header 
+        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+        isSidebarOpen={isSidebarOpen}
+      />
       <div 
         className="flex-1 flex flex-col overflow-hidden transition-all duration-300" 
         style={{ 
           marginLeft: isSidebarOpen && window.innerWidth >= 1024 ? '280px' : '0',
+          marginTop: '4rem', // Account for fixed header (64px = 4rem)
           // Use GPU acceleration for smoother transitions without layout reflow
           transform: 'translateZ(0)',
           backfaceVisibility: 'hidden'
         }}
       >
-        <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
         <main 
           className="flex-1 overflow-x-hidden overflow-y-auto bg-brand-light p-0"
           style={{

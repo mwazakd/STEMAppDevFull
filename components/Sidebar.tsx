@@ -27,8 +27,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   const activeItemClass = 'bg-brand-primary/10 text-brand-primary';
   const inactiveItemClass = 'text-gray-600 hover:bg-gray-200/50 hover:text-brand-dark';
 
+  // Sidebar starts below header (64px = h-16) on both mobile and desktop
+  const topPosition = 'top-16';
+  const sidebarHeight = 'h-[calc(100vh-4rem)]';
+  
   return (
-    <aside className={`fixed top-0 left-0 h-full bg-white border-r border-gray-200 transition-transform duration-300 z-[200] ${isOpen ? 'w-[280px]' : '-translate-x-full'} ${!isOpen ? 'w-[280px]' : ''}`}>
+    <aside className={`fixed ${topPosition} left-0 ${sidebarHeight} bg-white border-r border-gray-200 transition-transform duration-300 z-[200] ${isOpen ? 'w-[280px]' : '-translate-x-full'} ${!isOpen ? 'w-[280px]' : ''}`}>
       <div className="h-full flex flex-col p-4">
         <div className="flex items-center h-16 flex-shrink-0 px-4">
            <h1 className="text-2xl font-bold text-brand-primary">STEM Africa</h1>
