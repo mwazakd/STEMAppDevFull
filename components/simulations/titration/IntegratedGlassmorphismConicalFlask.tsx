@@ -342,6 +342,12 @@ export default function IntegratedGlassmorphismConicalFlask({
           };
         }
       });
+      // Immediately update liquid color when restoring refs (in case color changed while component was unmounted)
+      if (liquidRef.current && liquidRef.current.material instanceof THREE.MeshPhysicalMaterial) {
+        const color = new THREE.Color(liquidColor);
+        liquidRef.current.material.color.copy(color);
+        liquidRef.current.material.needsUpdate = true;
+      }
     }
 
     // Start animation loop to update liquid level from props
@@ -475,6 +481,16 @@ export default function IntegratedGlassmorphismConicalFlask({
       particlesRef.current.large.visible = stopcockOpen; // Large particles only visible when stream is active
     }
   }, [stopcockOpen]);
+
+  // Update liquid color when liquidColor prop changes (critical for indicator color changes during titration)
+  useEffect(() => {
+    if (liquidRef.current && liquidRef.current.material instanceof THREE.MeshPhysicalMaterial) {
+      const color = new THREE.Color(liquidColor);
+      liquidRef.current.material.color.copy(color);
+      // Mark material as needing update
+      liquidRef.current.material.needsUpdate = true;
+    }
+  }, [liquidColor]);
 
   return null;
 }
