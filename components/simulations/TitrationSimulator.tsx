@@ -6,6 +6,36 @@ import * as THREE from 'three';
 import IntegratedGlassmorphismBurette from './titration/IntegratedGlassmorphismBurette';
 import IntegratedGlassmorphismConicalFlask from './titration/IntegratedGlassmorphismConicalFlask';
 
+// Module-level storage for Three.js objects - persists across component unmounts/remounts
+const persistentThreeJS = {
+  scene: null as THREE.Scene | null,
+  camera: null as THREE.PerspectiveCamera | null,
+  renderer: null as THREE.WebGLRenderer | null,
+  isInitialized: false,
+  buretteGroup: null as THREE.Group | null,
+  flaskGroup: null as THREE.Group | null,
+};
+
+// Module-level storage for React state - persists across component unmounts/remounts
+const persistentState = {
+  solutionType: 'acid' as 'acid' | 'base',
+  solutionConc: 0.1,
+  solutionVol: 25,
+  titrantType: 'base' as 'acid' | 'base',
+  titrantConc: 0.1,
+  titrantAdded: 0,
+  isRunning: false,
+  buretteStopcockOpen: false,
+  data: [] as {volume: number, pH: number}[],
+  showTutorial: false,
+  showConfig: false,
+  showChart: false,
+  showChartSidebar: true,
+  chartWidth: 384,
+  isResizing: false,
+  isInitialized: false,
+};
+
 const calculatePH = (concentration: number, volume: number, type: string, titrantConc: number, titrantVol: number, titrantType: string) => {
   const totalVol = volume + titrantVol;
   if (totalVol === 0) return type === 'acid' ? 1 : 13;
@@ -64,23 +94,68 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const animationIdRef = useRef<number | null>(null);
   
-  const [solutionType, setSolutionType] = useState('acid');
-  const [solutionConc, setSolutionConc] = useState(0.1);
-  const [solutionVol, setSolutionVol] = useState(25);
-  const [titrantType, setTitrantType] = useState('base');
-  const [titrantConc, setTitrantConc] = useState(0.1);
-  const [titrantAdded, setTitrantAdded] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-  const [data, setData] = useState<{volume: number, pH: number}[]>([]);
-  const [showTutorial, setShowTutorial] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-  const [showChart, setShowChart] = useState(false);
-  const [showChartSidebar, setShowChartSidebar] = useState(true); // For PC/tablet sidebar visibility
-  const [chartWidth, setChartWidth] = useState(384); // Default 384px (w-96)
-  const [isResizing, setIsResizing] = useState(false);
+  // Initialize state from persistent storage or defaults
+  const [solutionType, setSolutionType] = useState(() => persistentState.solutionType);
+  const [solutionConc, setSolutionConc] = useState(() => persistentState.solutionConc);
+  const [solutionVol, setSolutionVol] = useState(() => persistentState.solutionVol);
+  const [titrantType, setTitrantType] = useState(() => persistentState.titrantType);
+  const [titrantConc, setTitrantConc] = useState(() => persistentState.titrantConc);
+  const [titrantAdded, setTitrantAdded] = useState(() => persistentState.titrantAdded);
+  const [isRunning, setIsRunning] = useState(() => persistentState.isRunning);
+  const [data, setData] = useState<{volume: number, pH: number}[]>(() => [...persistentState.data]);
+  const [showTutorial, setShowTutorial] = useState(() => persistentState.showTutorial);
+  const [showConfig, setShowConfig] = useState(() => persistentState.showConfig);
+  const [showChart, setShowChart] = useState(() => persistentState.showChart);
+  const [showChartSidebar, setShowChartSidebar] = useState(() => persistentState.showChartSidebar);
+  const [chartWidth, setChartWidth] = useState(() => persistentState.chartWidth);
+  const [isResizing, setIsResizing] = useState(() => persistentState.isResizing);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const chartResizeRef = useRef<HTMLDivElement>(null);
-  const [sceneReady, setSceneReady] = useState(false);
+  const [sceneReady, setSceneReady] = useState(() => persistentThreeJS.isInitialized);
+  
+  // Sync state changes to persistent storage
+  useEffect(() => {
+    persistentState.solutionType = solutionType;
+  }, [solutionType]);
+  useEffect(() => {
+    persistentState.solutionConc = solutionConc;
+  }, [solutionConc]);
+  useEffect(() => {
+    persistentState.solutionVol = solutionVol;
+  }, [solutionVol]);
+  useEffect(() => {
+    persistentState.titrantType = titrantType;
+  }, [titrantType]);
+  useEffect(() => {
+    persistentState.titrantConc = titrantConc;
+  }, [titrantConc]);
+  useEffect(() => {
+    persistentState.titrantAdded = titrantAdded;
+  }, [titrantAdded]);
+  useEffect(() => {
+    persistentState.isRunning = isRunning;
+  }, [isRunning]);
+  useEffect(() => {
+    persistentState.data = [...data];
+  }, [data]);
+  useEffect(() => {
+    persistentState.showTutorial = showTutorial;
+  }, [showTutorial]);
+  useEffect(() => {
+    persistentState.showConfig = showConfig;
+  }, [showConfig]);
+  useEffect(() => {
+    persistentState.showChart = showChart;
+  }, [showChart]);
+  useEffect(() => {
+    persistentState.showChartSidebar = showChartSidebar;
+  }, [showChartSidebar]);
+  useEffect(() => {
+    persistentState.chartWidth = chartWidth;
+  }, [chartWidth]);
+  useEffect(() => {
+    persistentState.isResizing = isResizing;
+  }, [isResizing]);
   
   // Track window size for responsive behavior
   useEffect(() => {
@@ -104,8 +179,13 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
     }
   }, [showChart, isMobile, onChartOpenChange]);
   const [autoRotate, setAutoRotate] = useState(true);
-  const [buretteStopcockOpen, setBuretteStopcockOpen] = useState(false);
+  const [buretteStopcockOpen, setBuretteStopcockOpen] = useState(() => persistentState.buretteStopcockOpen);
   const [buretteGripWidth, setBuretteGripWidth] = useState(25); // Default to burette diameter grip
+  
+  // Sync buretteStopcockOpen to persistent state
+  useEffect(() => {
+    persistentState.buretteStopcockOpen = buretteStopcockOpen;
+  }, [buretteStopcockOpen]);
   
   // Ref to track liquid level without causing React re-renders
   const buretteLiquidLevelRef = useRef(100);
@@ -221,9 +301,6 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
   useEffect(() => {
     if (!mountRef.current) return;
     
-    // Reset scene ready state when component mounts/remounts
-    setSceneReady(false);
-    
     // Check initial dimensions first
     let retryCount = 0;
     const maxRetries = 30; // Max 3 seconds of retrying
@@ -249,27 +326,101 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
         return;
       }
       
-      // Only initialize once per mount
-      if (rendererRef.current) return;
-    
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a2e);
-    sceneRef.current = scene;
-    
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(8, 4, 8);
-    camera.lookAt(0, 2, 0);
-    cameraRef.current = camera;
-    
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      if (mountRef.current) {
-    mountRef.current.appendChild(renderer.domElement);
+      // If Three.js objects already exist in persistent storage, reuse them
+      if (persistentThreeJS.isInitialized && persistentThreeJS.scene && persistentThreeJS.camera && persistentThreeJS.renderer) {
+        // Restore refs from persistent storage
+        sceneRef.current = persistentThreeJS.scene;
+        cameraRef.current = persistentThreeJS.camera;
+        rendererRef.current = persistentThreeJS.renderer;
+        
+        const canvas = persistentThreeJS.renderer.domElement;
+        
+        // Move canvas to current mount point if needed
+        if (!mountRef.current.contains(canvas)) {
+          // Remove from old parent if it exists
+          if (canvas.parentNode) {
+            canvas.parentNode.removeChild(canvas);
+          }
+          // Add to new container
+          mountRef.current.appendChild(canvas);
+        }
+        
+        // Update size for current container
+        persistentThreeJS.renderer.setSize(width, height);
+        persistentThreeJS.camera.aspect = width / height;
+        persistentThreeJS.camera.updateProjectionMatrix();
+        
+        // Force a render to ensure scene is visible
+        if (persistentThreeJS.scene && persistentThreeJS.camera && persistentThreeJS.renderer) {
+          persistentThreeJS.renderer.render(persistentThreeJS.scene, persistentThreeJS.camera);
+        }
+        
+        // Restart animation loop if not already running
+        if (!animationIdRef.current) {
+          const animate = () => {
+            // Use persistent Three.js objects - they persist across unmounts
+            if (persistentThreeJS.scene && persistentThreeJS.camera && persistentThreeJS.renderer) {
+              // Access component refs for state (will be recreated on remount but that's OK)
+              if (sceneRef.current && cameraRef.current && rendererRef.current) {
+                if (autoRotate && !mouseDownRef.current && !userHasRotatedRef.current && !isPanningRef.current) {
+                  autoRotateRef.current += 0.002;
+                  cameraAngleRef.current.theta = autoRotateRef.current;
+                }
+                
+                // Get current look-at point (dynamic orbit center)
+                const lookAtPoint = panOffsetRef.current;
+                
+                // Update camera position based on current angles and distance around dynamic look-at point
+                const radius = cameraDistanceRef.current;
+                cameraRef.current.position.x = lookAtPoint.x + radius * Math.sin(cameraAngleRef.current.phi) * Math.cos(cameraAngleRef.current.theta);
+                cameraRef.current.position.y = lookAtPoint.y + radius * Math.cos(cameraAngleRef.current.phi);
+                cameraRef.current.position.z = lookAtPoint.z + radius * Math.sin(cameraAngleRef.current.phi) * Math.sin(cameraAngleRef.current.theta);
+                cameraRef.current.lookAt(lookAtPoint);
+                
+                if (glassmorphismBuretteRef.current) {
+                  (glassmorphismBuretteRef.current as THREE.Group).position.y = 10.5;
+                }
+                
+                rendererRef.current.render(sceneRef.current, cameraRef.current);
+              }
+            }
+            animationIdRef.current = requestAnimationFrame(animate);
+          };
+          animate();
+        }
+        
+        // Scene is already ready
+        setSceneReady(true);
+        return;
       }
-    rendererRef.current = renderer;
+      
+      // First time initialization - create new Three.js objects
+      if (persistentThreeJS.isInitialized) return;
+      
+      // Reset scene ready state only on first initialization
+      setSceneReady(false);
+    
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x1a1a2e);
+      sceneRef.current = scene;
+      persistentThreeJS.scene = scene;
+      
+      const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+      camera.position.set(8, 4, 8);
+      camera.lookAt(0, 2, 0);
+      cameraRef.current = camera;
+      persistentThreeJS.camera = camera;
+      
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      if (mountRef.current) {
+        mountRef.current.appendChild(renderer.domElement);
+      }
+      rendererRef.current = renderer;
+      persistentThreeJS.renderer = renderer;
     
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
@@ -324,37 +475,49 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
     gridHelper.position.y = -0.4;
     scene.add(gridHelper);
     
+      // Mark as initialized in persistent storage
+      persistentThreeJS.isInitialized = true;
+      
       // Wait for next frame to ensure scene is fully initialized before setting ready
       requestAnimationFrame(() => {
-    setSceneReady(true);
+        setSceneReady(true);
       });
-    
-    const animate = () => {
-      if (sceneRef.current && cameraRef.current && rendererRef.current) {
-        if (autoRotate && !mouseDownRef.current && !userHasRotatedRef.current && !isPanningRef.current) {
-          autoRotateRef.current += 0.002;
-          cameraAngleRef.current.theta = autoRotateRef.current;
+      
+      // Animation loop - stored separately to persist across mounts
+      const animate = () => {
+        // Use persistent Three.js objects - they persist across unmounts
+        if (persistentThreeJS.scene && persistentThreeJS.camera && persistentThreeJS.renderer) {
+          // Access component refs for state (will be recreated on remount but that's OK)
+          if (sceneRef.current && cameraRef.current && rendererRef.current) {
+            if (autoRotate && !mouseDownRef.current && !userHasRotatedRef.current && !isPanningRef.current) {
+              autoRotateRef.current += 0.002;
+              cameraAngleRef.current.theta = autoRotateRef.current;
+            }
+            
+            // Get current look-at point (dynamic orbit center)
+            const lookAtPoint = panOffsetRef.current;
+            
+            // Update camera position based on current angles and distance around dynamic look-at point
+            const radius = cameraDistanceRef.current;
+            cameraRef.current.position.x = lookAtPoint.x + radius * Math.sin(cameraAngleRef.current.phi) * Math.cos(cameraAngleRef.current.theta);
+            cameraRef.current.position.y = lookAtPoint.y + radius * Math.cos(cameraAngleRef.current.phi);
+            cameraRef.current.position.z = lookAtPoint.z + radius * Math.sin(cameraAngleRef.current.phi) * Math.sin(cameraAngleRef.current.theta);
+            cameraRef.current.lookAt(lookAtPoint);
+            
+            if (glassmorphismBuretteRef.current) {
+              (glassmorphismBuretteRef.current as THREE.Group).position.y = 10.5;
+            }
+            
+            rendererRef.current.render(sceneRef.current, cameraRef.current);
+          }
         }
-        
-        // Get current look-at point (dynamic orbit center)
-        const lookAtPoint = panOffsetRef.current;
-        
-        // Update camera position based on current angles and distance around dynamic look-at point
-        const radius = cameraDistanceRef.current;
-        cameraRef.current.position.x = lookAtPoint.x + radius * Math.sin(cameraAngleRef.current.phi) * Math.cos(cameraAngleRef.current.theta);
-        cameraRef.current.position.y = lookAtPoint.y + radius * Math.cos(cameraAngleRef.current.phi);
-        cameraRef.current.position.z = lookAtPoint.z + radius * Math.sin(cameraAngleRef.current.phi) * Math.sin(cameraAngleRef.current.theta);
-        cameraRef.current.lookAt(lookAtPoint);
-        
-        if (glassmorphismBuretteRef.current) {
-            (glassmorphismBuretteRef.current as THREE.Group).position.y = 10.5;
-        }
-        
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        animationIdRef.current = requestAnimationFrame(animate);
+      };
+      
+      // Start animation loop only if not already running
+      if (!animationIdRef.current) {
+        animate();
       }
-      animationIdRef.current = requestAnimationFrame(animate);
-    };
-    animate();
     
     const handleMouseDown = (e: MouseEvent) => {
       // Detect middle mouse button (button 1) or Ctrl+Left click for panning
@@ -558,22 +721,24 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
       isPanningRef.current = false;
     };
     
-    // Prevent context menu on middle mouse button
-    renderer.domElement.addEventListener('contextmenu', (e) => {
-      if (isMiddleMouseRef.current) {
-        e.preventDefault();
+      // Prevent context menu on middle mouse button
+      if (rendererRef.current) {
+        rendererRef.current.domElement.addEventListener('contextmenu', (e) => {
+          if (isMiddleMouseRef.current) {
+            e.preventDefault();
+          }
+        });
+        
+        rendererRef.current.domElement.addEventListener('mousedown', handleMouseDown);
+        rendererRef.current.domElement.addEventListener('mousemove', handleMouseMove);
+        rendererRef.current.domElement.addEventListener('mouseup', handleMouseUp);
+        rendererRef.current.domElement.addEventListener('wheel', handleWheel);
+        
+        // Add touch event listeners
+        rendererRef.current.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+        rendererRef.current.domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+        rendererRef.current.domElement.addEventListener('touchend', handleTouchEnd, { passive: false });
       }
-    });
-    
-    renderer.domElement.addEventListener('mousedown', handleMouseDown);
-    renderer.domElement.addEventListener('mousemove', handleMouseMove);
-    renderer.domElement.addEventListener('mouseup', handleMouseUp);
-    renderer.domElement.addEventListener('wheel', handleWheel);
-    
-    // Add touch event listeners
-    renderer.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
-    renderer.domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
-    renderer.domElement.addEventListener('touchend', handleTouchEnd, { passive: false });
     
     const handleResize = () => {
       if (mountRef.current && cameraRef.current && rendererRef.current) {
@@ -647,56 +812,85 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
       cleanupFn = checkAndInit() || null;
     }, 50);
     
-    // Cleanup on unmount
+    // Cleanup - only cleanup event listeners, preserve Three.js objects
+    // Three.js objects are stored in module-level persistentThreeJS and will be reused
     return () => {
       clearTimeout(timeoutId);
       
-      // Call cleanup function if it exists
+      // Call cleanup function to remove event listeners
       if (cleanupFn) {
         cleanupFn();
         cleanupFn = null;
       }
       
-      // Additional cleanup to ensure everything is cleared
-      if (animationIdRef.current) {
-        cancelAnimationFrame(animationIdRef.current);
-        animationIdRef.current = null;
-      }
-      
-      if (rendererRef.current) {
-        if (mountRef.current && rendererRef.current.domElement && mountRef.current.contains(rendererRef.current.domElement)) {
-          mountRef.current.removeChild(rendererRef.current.domElement);
-        }
-        rendererRef.current.dispose();
-        rendererRef.current = null;
-      }
-      
-      if (sceneRef.current) {
-        // Clear scene children properly
-        while(sceneRef.current.children.length > 0) {
-          const child = sceneRef.current.children[0];
-          sceneRef.current.remove(child);
-          // Dispose geometries and materials if they exist
-          if ((child as any).traverse) {
-            (child as any).traverse((obj: any) => {
-              if (obj.geometry) obj.geometry.dispose();
-              if (obj.material) {
-                if (Array.isArray(obj.material)) {
-                  obj.material.forEach((mat: any) => mat.dispose());
-                } else {
-                  obj.material.dispose();
-                }
-              }
-            });
-          }
-        }
-        sceneRef.current = null;
-      }
-      
-      cameraRef.current = null;
-      setSceneReady(false);
+      // NOTE: We intentionally do NOT dispose Three.js objects here
+      // They are stored in persistentThreeJS and will be reused on next mount
+      // Only dispose on true unmount (when user navigates away from simulation)
     };
   }, []);
+  
+  // Separate cleanup for true unmount (component permanently removed - e.g., navigating away)
+  // This only runs when component is completely removed from the app
+  useEffect(() => {
+    return () => {
+      // Check if this is truly the last instance (navigation away from simulation)
+      // This is a simplified check - in a real app, you might use a router or context
+      // For now, we'll dispose when the component unmounts AND persistentThreeJS exists
+      // Note: This is a fallback - ideally Three.js objects should persist for the app lifetime
+      
+      // Actually, let's NOT auto-dispose here. Keep objects for app lifetime.
+      // User can refresh page if they want fresh start.
+      // Disposal will happen on page refresh/navigation naturally.
+    };
+  }, []);
+  
+  // Handle isEmbedded prop changes - move canvas and update size without reinitializing
+  useEffect(() => {
+    // Use persistent renderer if available, otherwise use component ref
+    const renderer = persistentThreeJS.renderer || rendererRef.current;
+    if (!renderer || !mountRef.current) return;
+    
+    const canvas = renderer.domElement;
+    const rect = mountRef.current.getBoundingClientRect();
+    let width = rect.width;
+    let height = rect.height;
+    
+    // For screens ≤576px: fix height at 475px for embedded mode
+    if (isEmbedded && window.innerWidth <= 576) {
+      height = 475;
+    }
+    
+    // Small delay to ensure container is rendered
+    const timeoutId = setTimeout(() => {
+      // Move canvas to current mount point if needed
+      if (!mountRef.current.contains(canvas)) {
+        // Remove from old parent if it exists
+        if (canvas.parentNode) {
+          canvas.parentNode.removeChild(canvas);
+        }
+        // Add to new container
+        mountRef.current.appendChild(canvas);
+      }
+      
+      // Update size for current container
+      if (width > 0 && height > 0) {
+        renderer.setSize(width, height);
+        const camera = persistentThreeJS.camera || cameraRef.current;
+        if (camera) {
+          camera.aspect = width / height;
+          camera.updateProjectionMatrix();
+        }
+        
+        // Force a render to ensure scene is visible
+        const scene = persistentThreeJS.scene || sceneRef.current;
+        if (scene && camera) {
+          renderer.render(scene, camera);
+        }
+      }
+    }, 50);
+    
+    return () => clearTimeout(timeoutId);
+  }, [isEmbedded]);
   
   useEffect(() => {
     // Conical flask liquid level will be handled by the IntegratedGlassmorphismConicalFlask component
@@ -793,6 +987,11 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
     setBuretteStopcockOpen(false); // Close stopcock on reset
     setTitrantAdded(0);
     setData([]);
+    // Reset persistent state as well
+    persistentState.isRunning = false;
+    persistentState.buretteStopcockOpen = false;
+    persistentState.titrantAdded = 0;
+    persistentState.data = [];
     // Reset burette liquid level ref to start at 0 mark (full)
     buretteLiquidLevelRef.current = 100;
   };
@@ -915,7 +1114,10 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
   const flaskPosition = useMemo(() => new THREE.Vector3(0, 2.5, 0), []);
   
   return (
-    <div className="w-full h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 overflow-hidden flex flex-col">
+    <div 
+      className="w-full h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 overflow-hidden flex flex-col"
+      data-titration-simulator="true"
+    >
       {/* Glassmorphism Burette Component */}
       {sceneReady && sceneRef.current && (
         <IntegratedGlassmorphismBurette

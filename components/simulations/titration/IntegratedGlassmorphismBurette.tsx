@@ -101,16 +101,36 @@ export default function IntegratedGlassmorphismBurette({
   useEffect(() => {
     if (!scene) return;
 
-    const buretteGroup = new THREE.Group();
-    buretteGroup.position.copy(position);
-    buretteGroup.position.y += 2; // Raise burette by 2 units above clamp position
-    buretteGroup.scale.setScalar(scale);
+    // Check if burette group already exists in scene (from previous mount)
+    let buretteGroup: THREE.Group;
+    const existingGroup = scene.children.find((child) => 
+      child instanceof THREE.Group && child.userData?.type === 'burette'
+    ) as THREE.Group | undefined;
+    
+    if (existingGroup) {
+      // Reuse existing group
+      buretteGroup = existingGroup;
+      buretteGroup.position.copy(position);
+      buretteGroup.position.y += 2;
+      buretteGroup.scale.setScalar(scale);
+    } else {
+      // Create new group
+      buretteGroup = new THREE.Group();
+      buretteGroup.userData.type = 'burette'; // Mark for identification
+      buretteGroup.position.copy(position);
+      buretteGroup.position.y += 2; // Raise burette by 2 units above clamp position
+      buretteGroup.scale.setScalar(scale);
+    }
+    
     buretteGroupRef.current = buretteGroup;
     if (groupRef) {
       (groupRef as React.MutableRefObject<THREE.Group | null>).current = buretteGroup;
     }
-
-    const tubeVisibleLength = 6.0;
+    
+    // Only create meshes if this is a new group
+    if (!existingGroup) {
+      // Create new meshes for new group
+      const tubeVisibleLength = 6.0;
     const outerRadius = 0.2;
     const glassThickness = 0.035;
     const innerRadius = outerRadius - glassThickness;
@@ -158,9 +178,10 @@ export default function IntegratedGlassmorphismBurette({
       new THREE.CylinderGeometry(outletOuter, outletOuter, 0.14, 20),
       glassMat.clone()
     );
-    outlet.position.y = taper.position.y - taperLength / 2 - 0.07;
-    outletRef.current = outlet; // Store reference for stream positioning
-    buretteGroup.add(outlet);
+      outlet.position.y = taper.position.y - taperLength / 2 - 0.07;
+      outlet.userData.type = 'outlet'; // Mark for identification
+      outletRef.current = outlet; // Store reference for stream positioning
+      buretteGroup.add(outlet);
 
     // Inner nozzle
     const nozzleInner = new THREE.Mesh(
@@ -206,7 +227,8 @@ export default function IntegratedGlassmorphismBurette({
     indicatorBar.position.y = 0.08;
     scGroup.add(indicatorBar);
 
-    buretteGroup.add(scGroup);
+      scGroup.userData.type = 'stopcock'; // Mark for identification
+      buretteGroup.add(scGroup);
 
     // Liquid
     const maxLiquidHeight = tubeVisibleLength - 0.06;
@@ -221,12 +243,13 @@ export default function IntegratedGlassmorphismBurette({
       thickness: 0.18,
       ior: 1.33
     });
-    const liquid = new THREE.Mesh(liquidGeom, liquidMat);
-    liquid.castShadow = false;
-    liquid.receiveShadow = false;
-    liquidRef.current = liquid;
-    liquid.position.y = -tubeVisibleLength / 2 + maxLiquidHeight / 2;
-    buretteGroup.add(liquid);
+      const liquid = new THREE.Mesh(liquidGeom, liquidMat);
+      liquid.castShadow = false;
+      liquid.receiveShadow = false;
+      liquid.userData.type = 'liquid'; // Mark for identification
+      liquidRef.current = liquid;
+      liquid.position.y = -tubeVisibleLength / 2 + maxLiquidHeight / 2;
+      buretteGroup.add(liquid);
 
     // Meniscus
     const menPts: THREE.Vector2[] = [];
@@ -248,10 +271,11 @@ export default function IntegratedGlassmorphismBurette({
       thickness: 0.1,
       ior: 1.33
     });
-    const menMesh = new THREE.Mesh(menGeo, menMat);
-    menMesh.rotation.x = Math.PI;
-    meniscusRef.current = menMesh;
-    buretteGroup.add(menMesh);
+      const menMesh = new THREE.Mesh(menGeo, menMat);
+      menMesh.rotation.x = Math.PI;
+      menMesh.userData.type = 'meniscus'; // Mark for identification
+      meniscusRef.current = menMesh;
+      buretteGroup.add(menMesh);
 
     // Stream visualization - dynamic length based on conical flask liquid level
     const initialStreamLength = calculateStreamLength(conicalFlaskLiquidLevel);
@@ -270,15 +294,16 @@ export default function IntegratedGlassmorphismBurette({
     const streamMesh = new THREE.Mesh(streamGeom, streamMat);
     streamMesh.visible = false;
     streamMesh.renderOrder = 1000; // Render stream on top of flask
-    streamMesh.castShadow = false; // Disable shadow casting to avoid artifacts
-    streamMesh.receiveShadow = false; // Disable shadow receiving
-    streamRef.current = streamMesh;
-    // Position stream to start from outlet and extend downward
-    // Stream center should be halfway between outlet and target
-    streamMesh.position.y = outletRef.current.position.y - (initialStreamLength / 2);
-    streamMesh.position.x = 0;
-    streamMesh.position.z = 0;
-    buretteGroup.add(streamMesh);
+      streamMesh.castShadow = false; // Disable shadow casting to avoid artifacts
+      streamMesh.receiveShadow = false; // Disable shadow receiving
+      streamMesh.userData.type = 'stream'; // Mark for identification
+      streamRef.current = streamMesh;
+      // Position stream to start from outlet and extend downward
+      // Stream center should be halfway between outlet and target
+      streamMesh.position.y = outletRef.current.position.y - (initialStreamLength / 2);
+      streamMesh.position.x = 0;
+      streamMesh.position.z = 0;
+      buretteGroup.add(streamMesh);
 
     // Grading labels
     const labels = new THREE.Group();
@@ -327,8 +352,40 @@ export default function IntegratedGlassmorphismBurette({
       }
     }
 
-    buretteGroup.add(labels);
-    scene.add(buretteGroup);
+      labels.userData.type = 'labels'; // Mark for identification
+      buretteGroup.add(labels);
+    }
+    
+    // Add to scene if not already there
+    if (!scene.children.includes(buretteGroup)) {
+      scene.add(buretteGroup);
+    }
+    
+    // Find existing refs if reusing group
+    if (existingGroup) {
+      existingGroup.traverse((obj) => {
+        if (obj.userData?.type === 'liquid') liquidRef.current = obj as THREE.Mesh;
+        if (obj.userData?.type === 'meniscus') meniscusRef.current = obj as THREE.Mesh;
+        if (obj.userData?.type === 'stream') streamRef.current = obj as THREE.Mesh;
+        if (obj.userData?.type === 'outlet') outletRef.current = obj as THREE.Mesh;
+        if (obj.userData?.type === 'stopcock') stopcockRef.current = obj as THREE.Group;
+        if (obj.userData?.type === 'labels') labelGroupRef.current = obj as THREE.Group;
+      });
+      // Ensure stopcockOpenRef is updated immediately when reusing group
+      stopcockOpenRef.current = stopcockOpen;
+    }
+    
+    // Force immediate update of liquid level and stream visibility after refs are restored
+    // Use setTimeout to ensure this runs after all refs are set
+    const immediateUpdate = () => {
+      if (liquidLevelRef && liquidLevelRef.current !== null && liquidLevelRef.current !== undefined) {
+        // Update liquid level and stream visibility immediately with current stopcock state
+        updateLiquidLevelDirect(liquidLevelRef.current, stopcockOpen);
+      }
+    };
+    // Run immediately, but also in next tick to ensure refs are fully restored
+    immediateUpdate();
+    setTimeout(immediateUpdate, 0);
 
     // Start animation loop to update liquid level from ref
     const animate = () => {
@@ -337,14 +394,19 @@ export default function IntegratedGlassmorphismBurette({
       }
       animationIdRef.current = requestAnimationFrame(animate);
     };
+    // Force first frame update immediately to ensure stream visibility is correct
+    if (liquidLevelRef && liquidLevelRef.current !== null && liquidLevelRef.current !== undefined) {
+      updateLiquidLevelDirect(liquidLevelRef.current, stopcockOpenRef.current);
+    }
     animate();
 
     return () => {
-      scene.remove(buretteGroup);
+      // Never remove groups on cleanup - they persist across view switches
+      // Only cleanup animation frame, groups stay in scene
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }
-      // Stream is part of buretteGroup, so it will be removed automatically
+      // Groups remain in scene for reuse on remount
     };
   }, [scene, position, scale, liquidLevelRef]);
 
@@ -380,13 +442,18 @@ export default function IntegratedGlassmorphismBurette({
     }
   }, [liquidColor]);
 
-  // Update stream visibility
+  // Update stream visibility - runs when stopcockOpen changes or component mounts
   useEffect(() => {
-    if (streamRef.current && liquidLevelRef) {
-      const shouldBeVisible = stopcockOpen && (liquidLevelRef.current || 0) > 0;
-      streamRef.current.visible = shouldBeVisible;
-    }
-  }, [stopcockOpen]);
+    // Use a small delay to ensure refs are restored when component remounts
+    const timeoutId = setTimeout(() => {
+      if (streamRef.current && liquidLevelRef) {
+        const shouldBeVisible = stopcockOpen && (liquidLevelRef.current || 0) > 0;
+        streamRef.current.visible = shouldBeVisible;
+      }
+    }, 0);
+    
+    return () => clearTimeout(timeoutId);
+  }, [stopcockOpen, liquidLevelRef]);
 
   return (
     <>

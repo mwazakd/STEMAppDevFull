@@ -48,10 +48,12 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
     };
   }, [isFullScreen]);
 
-  // Full display mode - original implementation
-  if (isFullScreen) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black overflow-hidden" key="fullscreen-container">
+  // Single persistent instance - render inside containers but with stable key to prevent unmounting
+  return (
+    <>
+      {/* Fullscreen Container - Only visible when isFullScreen is true */}
+      {isFullScreen && (
+        <div className="fixed inset-0 z-50 bg-black overflow-hidden">
           {/* Top Right Buttons Container - Exit Full Screen and Show Guide - Hide when chart is open on mobile */}
           <div 
             className={`absolute top-4 right-4 z-[100] flex flex-row gap-2 items-center transition-opacity`}
@@ -68,106 +70,117 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
             </button>
           </div>
           <div className="w-full h-full" style={{ width: '100vw', height: '100vh' }}>
-            <TitrationSimulator isEmbedded={false} onChartOpenChange={handleChartOpenChange} />
+            {/* Single persistent instance - stable key prevents unmounting when prop changes */}
+            <TitrationSimulator 
+              key="persistent-titration-simulator" 
+              isEmbedded={false} 
+              onChartOpenChange={handleChartOpenChange} 
+            />
           </div>
         </div>
-    );
-  }
+      )}
 
-  // Embedded mode - rendered inside SimulationsView's container
-  return (
-    <div key="embedded-container">
-      {/* Top Right Buttons Container - Full Screen and Show Guide - Hide when chart is open on mobile */}
-      <div 
-        className={`absolute top-4 right-4 z-10 flex flex-row gap-2 items-center ${isMobile && isChartOpen ? 'hidden' : ''} transition-opacity`}
-        style={{ display: isMobile && isChartOpen ? 'none' : 'flex' }}
-      >
-        {/* This will contain the Show Guide button from TitrationSimulator */}
-        <div id="embedded-guide-button-container"></div>
-        <button
-          onClick={toggleFullScreen}
-          className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80"
-          aria-label="View Full Screen"
-        >
-          <Maximize2 className="w-6 h-6" />
-        </button>
-      </div>
-      {/* Start/Stop Button - Overlay on Canvas */}
-      <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center pointer-events-none">
-        <div className="flex gap-2 pointer-events-auto" id="embedded-controls-container">
-          {/* Buttons will be controlled by TitrationSimulator component */}
+      {/* Embedded Container - Only visible when isFullScreen is false */}
+      {!isFullScreen && (
+        <div>
+          {/* Top Right Buttons Container - Full Screen and Show Guide - Hide when chart is open on mobile */}
+          <div 
+            className={`absolute top-4 right-4 z-10 flex flex-row gap-2 items-center ${isMobile && isChartOpen ? 'hidden' : ''} transition-opacity`}
+            style={{ display: isMobile && isChartOpen ? 'none' : 'flex' }}
+          >
+            {/* This will contain the Show Guide button from TitrationSimulator */}
+            <div id="embedded-guide-button-container"></div>
+            <button
+              onClick={toggleFullScreen}
+              className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80"
+              aria-label="View Full Screen"
+            >
+              <Maximize2 className="w-6 h-6" />
+            </button>
+          </div>
+          {/* Start/Stop Button - Overlay on Canvas */}
+          <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center pointer-events-none">
+            <div className="flex gap-2 pointer-events-auto" id="embedded-controls-container">
+              {/* Buttons will be controlled by TitrationSimulator component */}
+            </div>
+          </div>
+          <style>{`
+            .embedded-titration-wrapper {
+              width: 100% !important;
+              height: 100% !important;
+              position: absolute;
+              inset: 0;
+              overflow: hidden;
+              min-height: 475px;
+            }
+            .embedded-titration-wrapper > div {
+              width: 100% !important;
+              height: 100% !important;
+              position: absolute !important;
+              inset: 0 !important;
+            }
+            .embedded-titration-wrapper .h-screen {
+              height: 100% !important;
+              min-height: 100% !important;
+            }
+            .embedded-titration-wrapper div[ref] {
+              width: 100% !important;
+              height: 100% !important;
+              min-height: 475px !important;
+            }
+            .embedded-titration-wrapper canvas {
+              width: 100% !important;
+              height: 100% !important;
+              display: block !important;
+            }
+            /* Force mobile UI in embedded mode */
+            .embedded-titration-wrapper .force-mobile-ui {
+              display: block !important;
+            }
+            .embedded-titration-wrapper .hide-in-embedded {
+              display: none !important;
+            }
+            
+            /* For screens 576px and below: ensure wrapper respects fixed height */
+            @media (max-width: 576px) {
+              .embedded-titration-wrapper {
+                height: 475px !important;
+                min-height: 475px !important;
+                max-height: 475px !important;
+              }
+              .embedded-titration-wrapper > div {
+                height: 475px !important;
+                min-height: 475px !important;
+                max-height: 475px !important;
+              }
+              .embedded-titration-wrapper .h-screen {
+                height: 475px !important;
+                min-height: 475px !important;
+                max-height: 475px !important;
+              }
+              .embedded-titration-wrapper div[ref] {
+                height: 475px !important;
+                min-height: 475px !important;
+                max-height: 475px !important;
+              }
+              .embedded-titration-wrapper canvas {
+                height: 475px !important;
+                min-height: 475px !important;
+                max-height: 475px !important;
+              }
+            }
+          `}</style>
+          <div className="embedded-titration-wrapper" style={{ width: '100%', height: '100%', minHeight: '475px' }}>
+            {/* Single persistent instance - stable key prevents unmounting when prop changes */}
+            <TitrationSimulator 
+              key="persistent-titration-simulator" 
+              isEmbedded={true} 
+              onChartOpenChange={handleChartOpenChange} 
+            />
+          </div>
         </div>
-      </div>
-      <style>{`
-        .embedded-titration-wrapper {
-          width: 100% !important;
-          height: 100% !important;
-          position: absolute;
-          inset: 0;
-          overflow: hidden;
-          min-height: 475px;
-        }
-        .embedded-titration-wrapper > div {
-          width: 100% !important;
-          height: 100% !important;
-          position: absolute !important;
-          inset: 0 !important;
-        }
-        .embedded-titration-wrapper .h-screen {
-          height: 100% !important;
-          min-height: 100% !important;
-        }
-        .embedded-titration-wrapper div[ref] {
-          width: 100% !important;
-          height: 100% !important;
-          min-height: 475px !important;
-        }
-        .embedded-titration-wrapper canvas {
-          width: 100% !important;
-          height: 100% !important;
-          display: block !important;
-        }
-        /* Force mobile UI in embedded mode */
-        .embedded-titration-wrapper .force-mobile-ui {
-          display: block !important;
-        }
-        .embedded-titration-wrapper .hide-in-embedded {
-          display: none !important;
-        }
-        
-        /* For screens 576px and below: ensure wrapper respects fixed height */
-        @media (max-width: 576px) {
-          .embedded-titration-wrapper {
-            height: 475px !important;
-            min-height: 475px !important;
-            max-height: 475px !important;
-          }
-          .embedded-titration-wrapper > div {
-            height: 475px !important;
-            min-height: 475px !important;
-            max-height: 475px !important;
-          }
-          .embedded-titration-wrapper .h-screen {
-            height: 475px !important;
-            min-height: 475px !important;
-            max-height: 475px !important;
-          }
-          .embedded-titration-wrapper div[ref] {
-            height: 475px !important;
-            min-height: 475px !important;
-            max-height: 475px !important;
-          }
-          .embedded-titration-wrapper canvas {
-            height: 475px !important;
-            min-height: 475px !important;
-            max-height: 475px !important;
-          }
-        }
-      `}</style>
-      <div className="embedded-titration-wrapper" style={{ width: '100%', height: '100%', minHeight: '475px' }}>
-        <TitrationSimulator isEmbedded={true} onChartOpenChange={handleChartOpenChange} />
-      </div>
-    </div>
+      )}
+    </>
   );
 };
 
