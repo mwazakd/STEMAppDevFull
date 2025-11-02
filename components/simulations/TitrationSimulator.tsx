@@ -754,11 +754,24 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
     if (titrantAdded > 0) {
       setData(prev => {
         const lastPoint = prev[prev.length - 1];
-        if (!lastPoint || Math.abs(lastPoint.volume - titrantAdded) > 0.1) {
+        const currentVolume = parseFloat(titrantAdded.toFixed(2));
+        const currentPHValue = parseFloat(currentPH.toFixed(2));
+        
+        // Add new point if volume changed significantly (reduced threshold for smoother updates)
+        if (!lastPoint || Math.abs(lastPoint.volume - titrantAdded) > 0.02) {
           return [...prev, { 
-            volume: parseFloat(titrantAdded.toFixed(2)), 
-            pH: parseFloat(currentPH.toFixed(2)) 
+            volume: currentVolume, 
+            pH: currentPHValue 
           }];
+        }
+        // Update last point's pH value in real-time if pH changed significantly
+        else if (lastPoint && Math.abs(lastPoint.pH - currentPH) > 0.01) {
+          const updatedData = [...prev];
+          updatedData[updatedData.length - 1] = {
+            volume: currentVolume,
+            pH: currentPHValue
+          };
+          return updatedData;
         }
         return prev;
       });
@@ -1150,14 +1163,15 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
         </div>
           
           {data.length > 0 ? (
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={data}>
+            <ResponsiveContainer width="100%" height={400} key={`chart-${data.length}`}>
+              <LineChart data={data} key={`linechart-${data.length}`}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
                 <XAxis
                   dataKey="volume"
                   label={{ value: 'Volume (mL)', position: 'insideBottom', offset: -5, fill: '#fff' }}
                   stroke="#fff"
                   tick={{ fill: '#fff' }}
+                  domain={['auto', 'auto']}
                 />
                 <YAxis
                   domain={[0, 14]}
@@ -1175,6 +1189,9 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
                   stroke="#06b6d4"
                   strokeWidth={3}
                   dot={false}
+                  isAnimationActive={!isRunning}
+                  animationDuration={isRunning ? 0 : 300}
+                  animationEasing="ease-out"
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -1367,14 +1384,15 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
             
             {data.length > 0 ? (
                 <div className="w-full" style={{ height: '300px', minHeight: '300px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data}>
+                  <ResponsiveContainer width="100%" height="100%" key={`chart-mobile-${data.length}`}>
+                <LineChart data={data} key={`linechart-mobile-${data.length}`}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#444" />
                   <XAxis
                     dataKey="volume"
                     label={{ value: 'Volume (mL)', position: 'insideBottom', offset: -5, fill: '#fff' }}
                     stroke="#fff"
                     tick={{ fill: '#fff' }}
+                    domain={['auto', 'auto']}
                   />
                   <YAxis
                     domain={[0, 14]}
@@ -1392,9 +1410,12 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
                     stroke="#06b6d4"
                     strokeWidth={3}
                     dot={false}
+                    isAnimationActive={!isRunning}
+                    animationDuration={isRunning ? 0 : 300}
+                    animationEasing="ease-out"
                   />
                 </LineChart>
-              </ResponsiveContainer>
+                  </ResponsiveContainer>
                 </div>
             ) : (
               <div className="h-64 flex items-center justify-center text-gray-400 border border-gray-600 rounded-lg">
