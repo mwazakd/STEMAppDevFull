@@ -72,7 +72,6 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
           <div className="w-full h-full" style={{ width: '100vw', height: '100vh' }}>
             {/* Single persistent instance - stable key prevents unmounting when prop changes */}
             <TitrationSimulator 
-              key="persistent-titration-simulator" 
               isEmbedded={false} 
               onChartOpenChange={handleChartOpenChange} 
             />
@@ -173,7 +172,6 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
           <div className="embedded-titration-wrapper" style={{ width: '100%', height: '100%', minHeight: '475px' }}>
             {/* Single persistent instance - stable key prevents unmounting when prop changes */}
             <TitrationSimulator 
-              key="persistent-titration-simulator" 
               isEmbedded={true} 
               onChartOpenChange={handleChartOpenChange} 
             />
