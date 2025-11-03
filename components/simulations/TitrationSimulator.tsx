@@ -213,6 +213,27 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
   const touchPanModeRef = useRef(false); // Track if two-finger pan (vs pinch zoom)
   const initialTouchCenterRef = useRef({ x: 0, y: 0 });
   
+  // Store event handlers in refs so they persist and can be properly removed/reattached
+  const eventHandlersRef = useRef<{
+    handleMouseDown: ((e: MouseEvent) => void) | null;
+    handleMouseMove: ((e: MouseEvent) => void) | null;
+    handleMouseUp: (() => void) | null;
+    handleWheel: ((e: WheelEvent) => void) | null;
+    handleTouchStart: ((e: TouchEvent) => void) | null;
+    handleTouchMove: ((e: TouchEvent) => void) | null;
+    handleTouchEnd: ((e: TouchEvent) => void) | null;
+    handleContextMenu: ((e: Event) => void) | null;
+  }>({
+    handleMouseDown: null,
+    handleMouseMove: null,
+    handleMouseUp: null,
+    handleWheel: null,
+    handleTouchStart: null,
+    handleTouchMove: null,
+    handleTouchEnd: null,
+    handleContextMenu: null,
+  });
+  
   // Chart resize handler for PC/tablet - using ref to avoid re-renders during resize
   const chartWidthRef = useRef(chartWidth);
   const rafRef = useRef<number | null>(null);
@@ -721,14 +742,30 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
       isPanningRef.current = false;
     };
     
-    // Prevent context menu on middle mouse button
-      if (rendererRef.current) {
-        rendererRef.current.domElement.addEventListener('contextmenu', (e) => {
+    // Store handlers in refs for reuse when canvas moves
+    if (!eventHandlersRef.current.handleMouseDown) {
+      eventHandlersRef.current.handleMouseDown = handleMouseDown;
+      eventHandlersRef.current.handleMouseMove = handleMouseMove;
+      eventHandlersRef.current.handleMouseUp = handleMouseUp;
+      eventHandlersRef.current.handleWheel = handleWheel;
+      eventHandlersRef.current.handleTouchStart = handleTouchStart;
+      eventHandlersRef.current.handleTouchMove = handleTouchMove;
+      eventHandlersRef.current.handleTouchEnd = handleTouchEnd;
+    }
+    
+    const handleContextMenu = eventHandlersRef.current.handleContextMenu || ((e: Event) => {
       if (isMiddleMouseRef.current) {
         e.preventDefault();
       }
     });
     
+    if (!eventHandlersRef.current.handleContextMenu) {
+      eventHandlersRef.current.handleContextMenu = handleContextMenu;
+    }
+    
+    // Prevent context menu on middle mouse button
+      if (rendererRef.current) {
+        rendererRef.current.domElement.addEventListener('contextmenu', handleContextMenu);
         rendererRef.current.domElement.addEventListener('mousedown', handleMouseDown);
         rendererRef.current.domElement.addEventListener('mousemove', handleMouseMove);
         rendererRef.current.domElement.addEventListener('mouseup', handleMouseUp);
@@ -782,14 +819,18 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
         }
         resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
-        if (rendererRef.current && rendererRef.current.domElement) {
-          rendererRef.current.domElement.removeEventListener('mousedown', handleMouseDown);
-          rendererRef.current.domElement.removeEventListener('mousemove', handleMouseMove);
-          rendererRef.current.domElement.removeEventListener('mouseup', handleMouseUp);
-          rendererRef.current.domElement.removeEventListener('wheel', handleWheel);
-          rendererRef.current.domElement.removeEventListener('touchstart', handleTouchStart);
-          rendererRef.current.domElement.removeEventListener('touchmove', handleTouchMove);
-          rendererRef.current.domElement.removeEventListener('touchend', handleTouchEnd);
+        if (rendererRef.current && rendererRef.current.domElement && eventHandlersRef.current.handleMouseDown) {
+          // Use stored handlers for removal
+          rendererRef.current.domElement.removeEventListener('mousedown', eventHandlersRef.current.handleMouseDown);
+          rendererRef.current.domElement.removeEventListener('mousemove', eventHandlersRef.current.handleMouseMove!);
+          rendererRef.current.domElement.removeEventListener('mouseup', eventHandlersRef.current.handleMouseUp!);
+          rendererRef.current.domElement.removeEventListener('wheel', eventHandlersRef.current.handleWheel!);
+          rendererRef.current.domElement.removeEventListener('touchstart', eventHandlersRef.current.handleTouchStart!);
+          rendererRef.current.domElement.removeEventListener('touchmove', eventHandlersRef.current.handleTouchMove!);
+          rendererRef.current.domElement.removeEventListener('touchend', eventHandlersRef.current.handleTouchEnd!);
+          if (eventHandlersRef.current.handleContextMenu) {
+            rendererRef.current.domElement.removeEventListener('contextmenu', eventHandlersRef.current.handleContextMenu);
+          }
         }
         resizeObserver.disconnect();
       if (animationIdRef.current) {
@@ -871,6 +912,271 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
         // Add to new container
         mountRef.current.appendChild(canvas);
       }
+      
+      // Reattach event listeners after canvas move to ensure they work
+      // This is critical when canvas is moved between containers
+      // Use stored handlers if available, otherwise create new ones
+      const handleMouseDown = eventHandlersRef.current.handleMouseDown || ((e: MouseEvent) => {
+        // Detect middle mouse button (button 1) or Ctrl+Left click for panning
+        if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
+          isPanningRef.current = true;
+          isMiddleMouseRef.current = true;
+          lastMouseRef.current = { x: e.clientX, y: e.clientY };
+          setAutoRotate(false);
+        } else if (e.button === 0) {
+          // Left mouse button - orbit
+          mouseDownRef.current = true;
+          lastMouseRef.current = { x: e.clientX, y: e.clientY };
+          setAutoRotate(false);
+        }
+      });
+      
+      const handleMouseMove = eventHandlersRef.current.handleMouseMove || ((e: MouseEvent) => {
+        if (isPanningRef.current && cameraRef.current) {
+          // Panning mode - translate look-at point
+          const deltaX = e.clientX - lastMouseRef.current.x;
+          const deltaY = e.clientY - lastMouseRef.current.y;
+          
+          // Calculate camera's right and up vectors for panning
+          const forward = new THREE.Vector3();
+          cameraRef.current.getWorldDirection(forward);
+          const right = new THREE.Vector3();
+          right.crossVectors(forward, cameraRef.current.up).normalize();
+          const up = cameraRef.current.up.clone().normalize();
+          
+          // Pan speed based on distance from look-at point
+          const panSpeed = cameraDistanceRef.current * 0.001;
+          
+          // Update pan offset (look-at point) - REVERSED directions
+          panOffsetRef.current.add(right.multiplyScalar(-deltaX * panSpeed)); // REVERSED
+          panOffsetRef.current.add(up.multiplyScalar(deltaY * panSpeed)); // REVERSED
+          
+          lastMouseRef.current = { x: e.clientX, y: e.clientY };
+        } else if (mouseDownRef.current && cameraRef.current && !isMiddleMouseRef.current) {
+          // Orbit mode - rotate around look-at point (REVERSED AGAIN)
+          const deltaX = e.clientX - lastMouseRef.current.x;
+          const deltaY = e.clientY - lastMouseRef.current.y;
+          
+          cameraAngleRef.current.theta += deltaX * 0.005; // REVERSED AGAIN
+          cameraAngleRef.current.phi -= deltaY * 0.005; // REVERSED AGAIN
+          cameraAngleRef.current.phi = Math.max(0.1, Math.min(Math.PI / 2, cameraAngleRef.current.phi));
+          
+          // Mark that user has manually rotated
+          userHasRotatedRef.current = true;
+          
+          lastMouseRef.current = { x: e.clientX, y: e.clientY };
+        }
+      });
+      
+      const handleMouseUp = eventHandlersRef.current.handleMouseUp || (() => {
+        if (isMiddleMouseRef.current) {
+          isPanningRef.current = false;
+          isMiddleMouseRef.current = false;
+        } else {
+          mouseDownRef.current = false;
+        }
+      });
+      
+      const handleWheel = eventHandlersRef.current.handleWheel || ((e: WheelEvent) => {
+        e.preventDefault();
+        if (cameraRef.current) {
+          const delta = e.deltaY * 0.01;
+          
+          // Blender-style zoom: change distance along view direction (REVERSED)
+          const zoomSpeed = 0.5;
+          const newDistance = cameraDistanceRef.current + (delta * zoomSpeed); // REVERSED
+          cameraDistanceRef.current = Math.max(5, Math.min(40, newDistance));
+        }
+      });
+      
+      // Touch event handlers for mobile
+      const handleTouchStart = eventHandlersRef.current.handleTouchStart || ((e: TouchEvent) => {
+        e.preventDefault();
+        touchDownRef.current = true;
+        
+        if (e.touches.length === 1) {
+          // Single touch - rotation
+          const touch = e.touches[0];
+          lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
+          touchPanModeRef.current = false;
+          setAutoRotate(false);
+        } else if (e.touches.length === 2) {
+          // Two touches - determine if pan or zoom
+          const touch1 = e.touches[0];
+          const touch2 = e.touches[1];
+          const distance = Math.sqrt(
+            Math.pow(touch2.clientX - touch1.clientX, 2) + 
+            Math.pow(touch2.clientY - touch1.clientY, 2)
+          );
+          initialDistanceRef.current = distance;
+          initialCameraDistanceRef.current = cameraDistanceRef.current;
+          
+          // Calculate initial center point
+          initialTouchCenterRef.current = {
+            x: (touch1.clientX + touch2.clientX) / 2,
+            y: (touch1.clientY + touch2.clientY) / 2
+          };
+          
+          // Reset pan mode - will be determined in handleTouchMove
+          touchPanModeRef.current = false;
+        }
+      });
+      
+      const handleTouchMove = eventHandlersRef.current.handleTouchMove || ((e: TouchEvent) => {
+        e.preventDefault();
+        
+        if (e.touches.length === 1 && touchDownRef.current && cameraRef.current) {
+          // Single touch - rotation (REVERSED AGAIN)
+          const touch = e.touches[0];
+          const deltaX = touch.clientX - lastTouchRef.current.x;
+          const deltaY = touch.clientY - lastTouchRef.current.y;
+          
+          cameraAngleRef.current.theta += deltaX * 0.005; // REVERSED AGAIN
+          cameraAngleRef.current.phi -= deltaY * 0.005; // REVERSED AGAIN
+          cameraAngleRef.current.phi = Math.max(0.1, Math.min(Math.PI / 2, cameraAngleRef.current.phi));
+          
+          // Mark that user has manually rotated
+          userHasRotatedRef.current = true;
+          
+          lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
+        } else if (e.touches.length === 2 && cameraRef.current) {
+          const touch1 = e.touches[0];
+          const touch2 = e.touches[1];
+          const distance = Math.sqrt(
+            Math.pow(touch2.clientX - touch1.clientX, 2) + 
+            Math.pow(touch2.clientY - touch1.clientY, 2)
+          );
+          
+          // Calculate current center point
+          const currentCenter = {
+            x: (touch1.clientX + touch2.clientX) / 2,
+            y: (touch1.clientY + touch2.clientY) / 2
+          };
+          
+          // Calculate how much distance changed (for zoom detection)
+          const distanceChange = Math.abs(distance - initialDistanceRef.current);
+          const distanceChangePercent = distanceChange / initialDistanceRef.current;
+          
+          // Calculate how much center moved (for pan detection)
+          const centerMove = Math.sqrt(
+            Math.pow(currentCenter.x - initialTouchCenterRef.current.x, 2) +
+            Math.pow(currentCenter.y - initialTouchCenterRef.current.y, 2)
+          );
+          
+          // Determine if this is pan or zoom based on which change is more significant
+          // If distance changes significantly more than center movement, it's zoom
+          // If center moves significantly more than distance changes, it's pan
+          const isZoom = distanceChangePercent > 0.15 && distanceChangePercent > (centerMove / initialDistanceRef.current);
+          
+          if (isZoom) {
+            // Pinch to zoom
+            touchPanModeRef.current = false;
+            const scale = distance / initialDistanceRef.current;
+            
+            // Calculate new distance based on scale change (REVERSED)
+            // Scale > 1 means fingers moved apart (zoom in), scale < 1 means fingers moved together (zoom out)
+            const zoomSpeed = 0.5;
+            const distanceChange = (1 - scale) * initialCameraDistanceRef.current * zoomSpeed;
+            const newDistance = initialCameraDistanceRef.current + distanceChange; // REVERSED
+            cameraDistanceRef.current = Math.max(5, Math.min(40, newDistance));
+            
+            // Update initial distance for next frame
+            initialDistanceRef.current = distance;
+            initialCameraDistanceRef.current = cameraDistanceRef.current;
+          } else {
+            // Two-finger pan
+            touchPanModeRef.current = true;
+            isPanningRef.current = true;
+            
+            const deltaX = currentCenter.x - initialTouchCenterRef.current.x;
+            const deltaY = currentCenter.y - initialTouchCenterRef.current.y;
+            
+            // Calculate camera's right and up vectors for panning
+            const forward = new THREE.Vector3();
+            cameraRef.current.getWorldDirection(forward);
+            const right = new THREE.Vector3();
+            right.crossVectors(forward, cameraRef.current.up).normalize();
+            const up = cameraRef.current.up.clone().normalize();
+            
+            // Pan speed based on distance from look-at point
+            const panSpeed = cameraDistanceRef.current * 0.001;
+            
+            // Update pan offset (look-at point) - REVERSED directions
+            panOffsetRef.current.add(right.multiplyScalar(-deltaX * panSpeed)); // REVERSED
+            panOffsetRef.current.add(up.multiplyScalar(deltaY * panSpeed)); // REVERSED
+            
+            // Update initial center for next frame
+            initialTouchCenterRef.current = currentCenter;
+          }
+        }
+      });
+      
+      const handleTouchEnd = eventHandlersRef.current.handleTouchEnd || ((e: TouchEvent) => {
+        e.preventDefault();
+        touchDownRef.current = false;
+        touchPanModeRef.current = false;
+        isPanningRef.current = false;
+      });
+      
+      // Store handlers in refs for future reuse
+      if (!eventHandlersRef.current.handleMouseDown) {
+        eventHandlersRef.current.handleMouseDown = handleMouseDown;
+        eventHandlersRef.current.handleMouseMove = handleMouseMove;
+        eventHandlersRef.current.handleMouseUp = handleMouseUp;
+        eventHandlersRef.current.handleWheel = handleWheel;
+        eventHandlersRef.current.handleTouchStart = handleTouchStart;
+        eventHandlersRef.current.handleTouchMove = handleTouchMove;
+        eventHandlersRef.current.handleTouchEnd = handleTouchEnd;
+      }
+      
+      const handleContextMenu = eventHandlersRef.current.handleContextMenu || ((e: Event) => {
+        if (isMiddleMouseRef.current) {
+          e.preventDefault();
+        }
+      });
+      
+      if (!eventHandlersRef.current.handleContextMenu) {
+        eventHandlersRef.current.handleContextMenu = handleContextMenu;
+      }
+      
+      // Remove old listeners if they exist (to prevent duplicates)
+      // Use stored handlers for removal to ensure we remove the correct ones
+      if (eventHandlersRef.current.handleMouseDown) {
+        canvas.removeEventListener('mousedown', eventHandlersRef.current.handleMouseDown);
+      }
+      if (eventHandlersRef.current.handleMouseMove) {
+        canvas.removeEventListener('mousemove', eventHandlersRef.current.handleMouseMove);
+      }
+      if (eventHandlersRef.current.handleMouseUp) {
+        canvas.removeEventListener('mouseup', eventHandlersRef.current.handleMouseUp);
+      }
+      if (eventHandlersRef.current.handleWheel) {
+        canvas.removeEventListener('wheel', eventHandlersRef.current.handleWheel);
+      }
+      if (eventHandlersRef.current.handleTouchStart) {
+        canvas.removeEventListener('touchstart', eventHandlersRef.current.handleTouchStart);
+      }
+      if (eventHandlersRef.current.handleTouchMove) {
+        canvas.removeEventListener('touchmove', eventHandlersRef.current.handleTouchMove);
+      }
+      if (eventHandlersRef.current.handleTouchEnd) {
+        canvas.removeEventListener('touchend', eventHandlersRef.current.handleTouchEnd);
+      }
+      if (eventHandlersRef.current.handleContextMenu) {
+        canvas.removeEventListener('contextmenu', eventHandlersRef.current.handleContextMenu);
+      }
+      
+      // Reattach event listeners after canvas move
+      canvas.addEventListener('mousedown', handleMouseDown);
+      canvas.addEventListener('mousemove', handleMouseMove);
+      canvas.addEventListener('mouseup', handleMouseUp);
+      canvas.addEventListener('wheel', handleWheel);
+      canvas.addEventListener('contextmenu', handleContextMenu);
+      
+      // Add touch event listeners
+      canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+      canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+      canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
       
       // Update size for current container
       if (width > 0 && height > 0) {
