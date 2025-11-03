@@ -80,8 +80,8 @@ export default function IntegratedGlassmorphismConicalFlask({
       // Create new group
       flaskGroup = new THREE.Group();
       flaskGroup.userData.type = 'flask'; // Mark for identification
-      flaskGroup.position.copy(position);
-      flaskGroup.scale.setScalar(scale);
+    flaskGroup.position.copy(position);
+    flaskGroup.scale.setScalar(scale);
     }
     
     flaskRef.current = flaskGroup;
@@ -177,11 +177,11 @@ export default function IntegratedGlassmorphismConicalFlask({
       reflectivity: 0.5,
       side: THREE.DoubleSide
     });
-      const liquid = new THREE.Mesh(liquidGeometry, liquidMaterial);
-      liquid.position.y = -1.95; // Start at bottom
+    const liquid = new THREE.Mesh(liquidGeometry, liquidMaterial);
+    liquid.position.y = -1.95; // Start at bottom
       liquid.userData.type = 'liquid'; // Mark for identification
-      liquidRef.current = liquid;
-      flaskGroup.add(liquid);
+    liquidRef.current = liquid;
+    flaskGroup.add(liquid);
     
     // Add some bubbles for realism (restore)
     const bubbleGeometry = new THREE.SphereGeometry(0.04, 16, 16);
@@ -204,10 +204,10 @@ export default function IntegratedGlassmorphismConicalFlask({
       bubble.position.z = Math.sin(angle) * radius;
       bubble.position.y = -1.8 + Math.random() * 0.4;
       bubble.scale.setScalar(0.5 + Math.random() * 1.2);
-        bubble.visible = stopcockOpen; // Set initial visibility based on stream state
-        flaskGroup.add(bubble);
-        bubbles.push(bubble);
-      }
+      bubble.visible = stopcockOpen; // Set initial visibility based on stream state
+      flaskGroup.add(bubble);
+      bubbles.push(bubble);
+    }
       // Store bubbles as a group for easier finding (wrap in a group)
       const bubbleGroup = new THREE.Group();
       bubbleGroup.userData.type = 'bubbles';
@@ -216,9 +216,9 @@ export default function IntegratedGlassmorphismConicalFlask({
         bubbleGroup.add(b); // Add to bubbleGroup
       });
       flaskGroup.add(bubbleGroup);
-      bubblesRef.current = bubbles;
-      
-      // Add glowing particles in liquid with different sizes
+    bubblesRef.current = bubbles;
+    
+    // Add glowing particles in liquid with different sizes
     const smallParticleCount = 15; // Regular particles
     const mediumParticleCount = Math.floor(Math.random() * 2) + 1; // 1 or 2 particles 40% bigger
     const largeParticleCount = Math.floor(Math.random() * 2) + 3; // 3 or 4 particles 100% bigger
@@ -245,10 +245,10 @@ export default function IntegratedGlassmorphismConicalFlask({
       blending: THREE.AdditiveBlending
     });
     
-      const smallParticles = new THREE.Points(smallParticlesGeometry, smallParticlesMaterial);
-      smallParticles.visible = stopcockOpen;
+    const smallParticles = new THREE.Points(smallParticlesGeometry, smallParticlesMaterial);
+    smallParticles.visible = stopcockOpen;
       smallParticles.userData.type = 'small-particles';
-      flaskGroup.add(smallParticles);
+    flaskGroup.add(smallParticles);
     
     // Create medium particles (40% bigger)
     const mediumParticlesGeometry = new THREE.BufferGeometry();
@@ -272,10 +272,10 @@ export default function IntegratedGlassmorphismConicalFlask({
       blending: THREE.AdditiveBlending
     });
     
-      const mediumParticles = new THREE.Points(mediumParticlesGeometry, mediumParticlesMaterial);
-      mediumParticles.visible = stopcockOpen;
+    const mediumParticles = new THREE.Points(mediumParticlesGeometry, mediumParticlesMaterial);
+    mediumParticles.visible = stopcockOpen;
       mediumParticles.userData.type = 'medium-particles';
-      flaskGroup.add(mediumParticles);
+    flaskGroup.add(mediumParticles);
     
     // Create large particles (100% bigger)
     const largeParticlesGeometry = new THREE.BufferGeometry();
@@ -299,18 +299,18 @@ export default function IntegratedGlassmorphismConicalFlask({
       blending: THREE.AdditiveBlending
     });
     
-      const largeParticles = new THREE.Points(largeParticlesGeometry, largeParticlesMaterial);
-      largeParticles.visible = stopcockOpen;
+    const largeParticles = new THREE.Points(largeParticlesGeometry, largeParticlesMaterial);
+    largeParticles.visible = stopcockOpen;
       largeParticles.userData.type = 'large-particles';
-      flaskGroup.add(largeParticles);
-      
-      // Store references for animation
-      particlesRef.current = { 
-        small: smallParticles, 
-        medium: mediumParticles, 
-        large: largeParticles 
-      };
-      
+    flaskGroup.add(largeParticles);
+    
+    // Store references for animation
+    particlesRef.current = { 
+      small: smallParticles, 
+      medium: mediumParticles, 
+      large: largeParticles 
+    };
+
       // Also store as a group for easier finding
       const particleGroup = new THREE.Group();
       particleGroup.userData.type = 'particles';
@@ -322,7 +322,7 @@ export default function IntegratedGlassmorphismConicalFlask({
     
     // Add to scene if not already there
     if (!scene.children.includes(flaskGroup)) {
-      scene.add(flaskGroup);
+    scene.add(flaskGroup);
     }
     
     // Find existing refs if reusing group

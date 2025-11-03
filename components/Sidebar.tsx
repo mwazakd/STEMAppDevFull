@@ -3,6 +3,7 @@ import React from 'react';
 import type { View } from '../App';
 import { MOCK_SUBJECTS } from '../constants';
 import { BeakerIcon, CommunityIcon, ChevronDownIcon, PlayIcon } from './Icons';
+import { ArrowLeft, Home } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -34,37 +35,38 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className={`fixed ${topPosition} left-0 ${sidebarHeight} bg-white border-r border-gray-200 transition-transform duration-300 z-[200] ${isOpen ? 'w-[280px]' : '-translate-x-full'} ${!isOpen ? 'w-[280px]' : ''}`}>
       <div className="h-full flex flex-col p-4">
-        <div className="flex items-center h-16 flex-shrink-0 px-4">
-           <h1 className="text-2xl font-bold text-brand-primary">STEM Africa</h1>
+        {/* Navigation buttons row */}
+        <div className="flex items-center justify-evenly flex-shrink-0 px-4" style={{ height: '51.2px' }}>
+          <button 
+            onClick={() => {
+              if (activeView === 'simulations' && activeSimulationId) {
+                setActiveView('simulationsList');
+              }
+            }}
+            className="flex-1 flex items-center justify-center p-2 rounded-lg text-gray-600 hover:bg-gray-200/50 hover:text-brand-dark focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-primary transition-colors"
+            title="Back to simulations"
+            disabled={!(activeView === 'simulations' && activeSimulationId)}
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </button>
+          <button 
+            onClick={() => setActiveView('home')}
+            className={`flex-1 flex items-center justify-center p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-primary ${activeView === 'home' ? 'bg-brand-primary/10 text-brand-primary' : 'text-gray-600 hover:bg-gray-200/50 hover:text-brand-dark'}`}
+            title="Home"
+          >
+            <Home className="h-6 w-6" />
+          </button>
+          <button 
+            onClick={() => setActiveView('community')}
+            className={`flex-1 flex items-center justify-center p-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-primary ${activeView === 'community' ? 'bg-brand-primary/10 text-brand-primary' : 'text-gray-600 hover:bg-gray-200/50 hover:text-brand-dark'}`}
+            title="Community"
+          >
+            <CommunityIcon className="h-6 w-6" />
+          </button>
         </div>
-        <nav className="flex-1 mt-8 space-y-2 overflow-y-auto">
-           <div className="mb-6">
-             <h3 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Main Menu</h3>
-             <button onClick={() => setActiveView('home')} className={`${baseItemClass} ${activeView === 'home' ? activeItemClass : inactiveItemClass}`}>
-                <span className="mr-3">🏠</span>
-                Home
-           </button>
-           <button onClick={() => setActiveView('simulationsList')} className={`${baseItemClass} ${activeView === 'simulationsList' || activeView === 'simulations' ? activeItemClass : inactiveItemClass}`}>
-                <BeakerIcon className="h-6 w-6 mr-3" />
-                Simulations
-                {(activeView === 'simulationsList' || activeView === 'simulations') && <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-semibold">24</span>}
-           </button>
-           <button onClick={() => setActiveView('community')} className={`${baseItemClass} ${activeView === 'community' ? activeItemClass : inactiveItemClass}`}>
-                <CommunityIcon className="h-6 w-6 mr-3" />
-                Community
-           </button>
-           </div>
-           
-           <div className="mb-6">
-             <h3 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Resources</h3>
-             <button className={`${baseItemClass} ${inactiveItemClass}`}>
-                <span className="mr-3">📚</span>
-                Study Guides
-           </button>
-           </div>
-           
+        <nav className="flex-1 mt-2 space-y-2 overflow-y-auto">
            {activeView === 'simulations' && (
-             <div className="pt-6">
+             <div className="pt-2">
                 <h3 className="px-4 text-sm font-semibold text-gray-500 uppercase tracking-wider">Subjects</h3>
                 <div className="mt-3 space-y-1">
                     {MOCK_SUBJECTS.map((subject) => (

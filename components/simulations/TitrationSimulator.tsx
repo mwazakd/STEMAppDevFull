@@ -400,26 +400,26 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
       // Reset scene ready state only on first initialization
       setSceneReady(false);
     
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x1a1a2e);
-      sceneRef.current = scene;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+    sceneRef.current = scene;
       persistentThreeJS.scene = scene;
-      
-      const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-      camera.position.set(8, 4, 8);
-      camera.lookAt(0, 2, 0);
-      cameraRef.current = camera;
+    
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(8, 4, 8);
+    camera.lookAt(0, 2, 0);
+    cameraRef.current = camera;
       persistentThreeJS.camera = camera;
-      
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(width, height);
-      renderer.setPixelRatio(window.devicePixelRatio);
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       if (mountRef.current) {
-        mountRef.current.appendChild(renderer.domElement);
+    mountRef.current.appendChild(renderer.domElement);
       }
-      rendererRef.current = renderer;
+    rendererRef.current = renderer;
       persistentThreeJS.renderer = renderer;
     
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -480,43 +480,43 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
       
       // Wait for next frame to ensure scene is fully initialized before setting ready
       requestAnimationFrame(() => {
-        setSceneReady(true);
+    setSceneReady(true);
       });
-      
+    
       // Animation loop - stored separately to persist across mounts
-      const animate = () => {
+    const animate = () => {
         // Use persistent Three.js objects - they persist across unmounts
         if (persistentThreeJS.scene && persistentThreeJS.camera && persistentThreeJS.renderer) {
           // Access component refs for state (will be recreated on remount but that's OK)
-          if (sceneRef.current && cameraRef.current && rendererRef.current) {
-            if (autoRotate && !mouseDownRef.current && !userHasRotatedRef.current && !isPanningRef.current) {
-              autoRotateRef.current += 0.002;
-              cameraAngleRef.current.theta = autoRotateRef.current;
-            }
-            
-            // Get current look-at point (dynamic orbit center)
-            const lookAtPoint = panOffsetRef.current;
-            
-            // Update camera position based on current angles and distance around dynamic look-at point
-            const radius = cameraDistanceRef.current;
-            cameraRef.current.position.x = lookAtPoint.x + radius * Math.sin(cameraAngleRef.current.phi) * Math.cos(cameraAngleRef.current.theta);
-            cameraRef.current.position.y = lookAtPoint.y + radius * Math.cos(cameraAngleRef.current.phi);
-            cameraRef.current.position.z = lookAtPoint.z + radius * Math.sin(cameraAngleRef.current.phi) * Math.sin(cameraAngleRef.current.theta);
-            cameraRef.current.lookAt(lookAtPoint);
-            
-            if (glassmorphismBuretteRef.current) {
-              (glassmorphismBuretteRef.current as THREE.Group).position.y = 10.5;
-            }
-            
-            rendererRef.current.render(sceneRef.current, cameraRef.current);
-          }
+      if (sceneRef.current && cameraRef.current && rendererRef.current) {
+        if (autoRotate && !mouseDownRef.current && !userHasRotatedRef.current && !isPanningRef.current) {
+          autoRotateRef.current += 0.002;
+          cameraAngleRef.current.theta = autoRotateRef.current;
         }
-        animationIdRef.current = requestAnimationFrame(animate);
-      };
+        
+        // Get current look-at point (dynamic orbit center)
+        const lookAtPoint = panOffsetRef.current;
+        
+        // Update camera position based on current angles and distance around dynamic look-at point
+        const radius = cameraDistanceRef.current;
+        cameraRef.current.position.x = lookAtPoint.x + radius * Math.sin(cameraAngleRef.current.phi) * Math.cos(cameraAngleRef.current.theta);
+        cameraRef.current.position.y = lookAtPoint.y + radius * Math.cos(cameraAngleRef.current.phi);
+        cameraRef.current.position.z = lookAtPoint.z + radius * Math.sin(cameraAngleRef.current.phi) * Math.sin(cameraAngleRef.current.theta);
+        cameraRef.current.lookAt(lookAtPoint);
+        
+        if (glassmorphismBuretteRef.current) {
+              (glassmorphismBuretteRef.current as THREE.Group).position.y = 10.5;
+        }
+        
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+          }
+      }
+      animationIdRef.current = requestAnimationFrame(animate);
+    };
       
       // Start animation loop only if not already running
       if (!animationIdRef.current) {
-        animate();
+    animate();
       }
     
     const handleMouseDown = (e: MouseEvent) => {
@@ -721,20 +721,20 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
       isPanningRef.current = false;
     };
     
-      // Prevent context menu on middle mouse button
+    // Prevent context menu on middle mouse button
       if (rendererRef.current) {
         rendererRef.current.domElement.addEventListener('contextmenu', (e) => {
-          if (isMiddleMouseRef.current) {
-            e.preventDefault();
-          }
-        });
-        
+      if (isMiddleMouseRef.current) {
+        e.preventDefault();
+      }
+    });
+    
         rendererRef.current.domElement.addEventListener('mousedown', handleMouseDown);
         rendererRef.current.domElement.addEventListener('mousemove', handleMouseMove);
         rendererRef.current.domElement.addEventListener('mouseup', handleMouseUp);
         rendererRef.current.domElement.addEventListener('wheel', handleWheel);
-        
-        // Add touch event listeners
+    
+    // Add touch event listeners
         rendererRef.current.domElement.addEventListener('touchstart', handleTouchStart, { passive: false });
         rendererRef.current.domElement.addEventListener('touchmove', handleTouchMove, { passive: false });
         rendererRef.current.domElement.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -1617,7 +1617,7 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
                     animationEasing="ease-out"
                   />
                 </LineChart>
-                  </ResponsiveContainer>
+              </ResponsiveContainer>
                 </div>
             ) : (
               <div className="h-64 flex items-center justify-center text-gray-400 border border-gray-600 rounded-lg">

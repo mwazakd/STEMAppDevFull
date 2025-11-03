@@ -11,19 +11,20 @@ import Chatbot from './components/Chatbot';
 export type View = 'home' | 'simulationsList' | 'simulations' | 'community' | 'profile' | 'settings';
 
 // Helper functions for URL state management
-const getStateFromURL = (): { view: View; simulationId: string | null } => {
+const getStateFromURL = (): { view: View; simulationId: string | null; subject: string | null } => {
   const params = new URLSearchParams(window.location.search);
   const view = (params.get('view') as View) || 'home';
   const simulationId = params.get('simulationId');
+  const subject = params.get('subject');
   
   // Validate view
   const validViews: View[] = ['home', 'simulationsList', 'simulations', 'community', 'profile', 'settings'];
   const validView = validViews.includes(view) ? view : 'home';
   
-  return { view: validView, simulationId };
+  return { view: validView, simulationId, subject };
 };
 
-const updateURL = (view: View, simulationId: string | null) => {
+const updateURL = (view: View, simulationId: string | null, subject: string | null = null) => {
   const params = new URLSearchParams();
   if (view !== 'home') {
     params.set('view', view);
@@ -31,30 +32,43 @@ const updateURL = (view: View, simulationId: string | null) => {
   if (simulationId) {
     params.set('simulationId', simulationId);
   }
+  if (subject) {
+    params.set('subject', subject);
+  }
   
   const newURL = params.toString() 
     ? `${window.location.pathname}?${params.toString()}`
     : window.location.pathname;
   
-  window.history.pushState({ view, simulationId }, '', newURL);
+  window.history.pushState({ view, simulationId, subject }, '', newURL);
 };
 
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
   const [activeView, setActiveView] = useState<View>('home');
   const [activeSimulationId, setActiveSimulationId] = useState<string | null>(null);
+  const [activeSubject, setActiveSubject] = useState<string | null>(null);
   const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set(['physics']));
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Initialize state from URL on mount
   useEffect(() => {
-    const { view, simulationId } = getStateFromURL();
+    const { view, simulationId, subject } = getStateFromURL();
     setActiveView(view);
     setActiveSimulationId(simulationId);
+    setActiveSubject(subject);
+    
+    // Close sidebar if on simulationsList page
+    if (view === 'simulationsList') {
+      setIsSidebarOpen(false);
+    } else {
+      // Otherwise, use default behavior (open on desktop, closed on mobile)
+      setIsSidebarOpen(window.innerWidth >= 1024);
+    }
     
     // Set initial history state
-    if (view !== 'home' || simulationId) {
-      window.history.replaceState({ view, simulationId }, '', window.location.href);
+    if (view !== 'home' || simulationId || subject) {
+      window.history.replaceState({ view, simulationId, subject }, '', window.location.href);
     }
     
     setIsInitialized(true);
@@ -65,13 +79,23 @@ const App: React.FC = () => {
     if (!isInitialized) return;
     
     const handlePopState = (event: PopStateEvent) => {
+      let newView: View;
       if (event.state) {
-        setActiveView(event.state.view || 'home');
+        newView = event.state.view || 'home';
+        setActiveView(newView);
         setActiveSimulationId(event.state.simulationId || null);
+        setActiveSubject(event.state.subject || null);
       } else {
-        const { view, simulationId } = getStateFromURL();
+        const { view, simulationId, subject } = getStateFromURL();
+        newView = view;
         setActiveView(view);
         setActiveSimulationId(simulationId);
+        setActiveSubject(subject);
+      }
+      
+      // Close sidebar if navigating to simulationsList
+      if (newView === 'simulationsList') {
+        setIsSidebarOpen(false);
       }
     };
 
@@ -82,7 +106,10 @@ const App: React.FC = () => {
   // Handle window resize for responsive sidebar
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 1024) {
+      // Keep sidebar closed on simulationsList page regardless of screen size
+      if (activeView === 'simulationsList') {
+        setIsSidebarOpen(false);
+      } else if (window.innerWidth >= 1024) {
         setIsSidebarOpen(true);
       } else {
         setIsSidebarOpen(false);
@@ -90,13 +117,13 @@ const App: React.FC = () => {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [activeView]);
 
   // Update URL when state changes (after initialization)
   useEffect(() => {
     if (!isInitialized) return;
-    updateURL(activeView, activeSimulationId);
-  }, [activeView, activeSimulationId, isInitialized]);
+    updateURL(activeView, activeSimulationId, activeSubject);
+  }, [activeView, activeSimulationId, activeSubject, isInitialized]);
 
   const handleSelectSimulation = useCallback((simulationId: string) => {
     setActiveSimulationId(simulationId);
@@ -115,10 +142,14 @@ const App: React.FC = () => {
     });
   };
 
-  const handleNavigate = useCallback((view: View) => {
+  const handleNavigate = useCallback((view: View, subject?: string | null) => {
     setActiveView(view);
     if (view === 'simulationsList') {
       setActiveSimulationId(null);
+      setActiveSubject(subject || null);
+      setIsSidebarOpen(false); // Close sidebar when navigating to simulations list
+    } else {
+      setActiveSubject(null);
     }
   }, []);
 
@@ -132,7 +163,11 @@ const App: React.FC = () => {
       case 'home':
         return <HomePage onNavigate={handleNavigate} />;
       case 'simulationsList':
-        return <SimulationsListPage onSelectSimulation={handleSelectSimulation} onNavigate={handleNavigate} />;
+        return <SimulationsListPage 
+          onSelectSimulation={handleSelectSimulation} 
+          onNavigate={handleNavigate}
+          subject={activeSubject}
+        />;
       case 'simulations':
         return <SimulationsView activeSimulationId={activeSimulationId} onSelectSimulation={handleSelectSimulation} />;
       case 'community':
@@ -179,6 +214,7 @@ const App: React.FC = () => {
       <Header 
         onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
         isSidebarOpen={isSidebarOpen}
+        onNavigateHome={() => handleNavigate('home')}
       />
       <div 
         className="flex-1 flex flex-col overflow-hidden transition-all duration-300" 
