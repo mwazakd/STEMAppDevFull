@@ -3,7 +3,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Play, Pause, RotateCcw, Target } from '../Icons';
 
-export default function ProjectileMotionSimulator() {
+interface ProjectileMotionSimulatorProps {
+  isEmbedded?: boolean;
+  onChartOpenChange?: (isOpen: boolean) => void;
+}
+
+export default function ProjectileMotionSimulator({ 
+  isEmbedded = false, 
+  onChartOpenChange 
+}: ProjectileMotionSimulatorProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const animationIdRef = useRef<number | null>(null);
@@ -49,8 +57,13 @@ export default function ProjectileMotionSimulator() {
     const { scene, camera } = simulationState.current;
     const mount = mountRef.current;
 
-    const width = mount.clientWidth;
-    const height = mount.clientHeight;
+    let width = mount.clientWidth;
+    let height = mount.clientHeight;
+    
+    // For screens ≤576px: fix height at 475px for embedded mode
+    if (isEmbedded && window.innerWidth <= 576) {
+      height = 475;
+    }
 
     scene.background = new THREE.Color(0x1a202c);
     scene.fog = new THREE.Fog(0x1a202c, 50, 200);
@@ -119,24 +132,72 @@ export default function ProjectileMotionSimulator() {
 
     const handleResize = () => {
         if (!mount || !rendererRef.current) return;
-        const w = mount.clientWidth;
-        const h = mount.clientHeight;
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        rendererRef.current.setSize(w, h);
+        let w = mount.clientWidth;
+        let h = mount.clientHeight;
+        
+        // For screens ≤576px: fix height at 475px for embedded mode
+        // Check if mount is in embedded wrapper
+        const isCurrentlyEmbedded = mount.closest('.embedded-projectile-wrapper') !== null;
+        if (isCurrentlyEmbedded && window.innerWidth <= 576) {
+          h = 475;
+        }
+        
+        if (w > 0 && h > 0) {
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          rendererRef.current.setSize(w, h);
+        }
     };
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(mount);
+    
+    // Initial resize
+    handleResize();
 
     return () => {
       resizeObserver.unobserve(mount);
       if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
-      if (rendererRef.current && mount.contains(rendererRef.current.domElement)) {
-        mount.removeChild(rendererRef.current.domElement);
-      }
-      rendererRef.current?.dispose();
+      // Don't remove canvas if it's being reused (switching views)
+      // Only dispose on true unmount
     };
   }, []);
+
+  // Handle isEmbedded prop changes - update size without reinitializing
+  useEffect(() => {
+    if (!rendererRef.current || !mountRef.current) return;
+    
+    const canvas = rendererRef.current.domElement;
+    const mount = mountRef.current;
+    const rect = mount.getBoundingClientRect();
+    let width = rect.width;
+    let height = rect.height;
+    
+    // For screens ≤576px: fix height at 475px for embedded mode
+    if (isEmbedded && window.innerWidth <= 576) {
+      height = 475;
+    }
+    
+    // Small delay to ensure container is rendered
+    const timeoutId = setTimeout(() => {
+      // Update size for current container
+      if (width > 0 && height > 0) {
+        rendererRef.current?.setSize(width, height);
+        const { camera } = simulationState.current;
+        if (camera) {
+          camera.aspect = width / height;
+          camera.updateProjectionMatrix();
+        }
+        
+        // Force a render to ensure scene is visible
+        const { scene } = simulationState.current;
+        if (scene && camera && rendererRef.current) {
+          rendererRef.current.render(scene, camera);
+        }
+      }
+    }, 50);
+    
+    return () => clearTimeout(timeoutId);
+  }, [isEmbedded]);
 
   // Update target position when range changes
   useEffect(() => {
@@ -185,10 +246,18 @@ export default function ProjectileMotionSimulator() {
   };
 
   return (
-    <div className="w-full h-full flex flex-col md:flex-row bg-gray-900 text-white">
-        <div ref={mountRef} className="flex-1 w-full h-64 md:h-full relative">
-           <div className="absolute top-2 left-2 bg-black/50 p-2 rounded-md text-xs">Drag to rotate | Scroll to zoom</div>
-        </div>
+    <div className={`w-full h-full bg-gray-900 text-white ${isEmbedded ? 'relative' : 'flex flex-col md:flex-row'}`}>
+      {/* Canvas Container */}
+      <div ref={mountRef} className={`${isEmbedded ? 'w-full h-full absolute inset-0' : 'flex-1 w-full h-64 md:h-full'} relative`}>
+        {!isEmbedded && (
+          <div className="absolute top-2 left-2 bg-black/50 p-2 rounded-md text-xs z-10">
+            Drag to rotate | Scroll to zoom
+          </div>
+        )}
+      </div>
+      
+      {/* Keep sidebar for now - will be moved to overlays in Phase 2 */}
+      {!isEmbedded && (
         <aside className="w-full md:w-80 bg-gray-800 p-4 overflow-y-auto">
           <div className="flex items-center gap-2 mb-4">
             <Target className="w-6 h-6 text-cyan-400" />
@@ -232,6 +301,7 @@ export default function ProjectileMotionSimulator() {
             </div>
           </div>
         </aside>
+      )}
     </div>
   );
 }

@@ -1587,7 +1587,13 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
           
           {/* Floating Start Button - Overlay on Canvas - Only show in full view (not embedded) */}
           {!isEmbedded && (
-            <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center">
+            <div 
+              className="absolute left-0 right-0 z-[200] flex justify-center"
+              style={{ 
+                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)',
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+              }}
+            >
               <div className="flex gap-2">
               <button
                 onClick={toggleDispensing}

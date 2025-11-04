@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import TitrationSimulator from './TitrationSimulator';
-import { Maximize2, Minimize2, Play, Pause, RotateCcw } from 'lucide-react';
+import ProjectileMotionSimulator from './ProjectileMotionSimulator';
+import { Maximize2, Minimize2 } from 'lucide-react';
 
-interface TitrationSimulatorWrapperProps {
+interface ProjectileMotionSimulatorWrapperProps {
   // Props can be added here if needed in the future
 }
 
-const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () => {
+const ProjectileMotionSimulatorWrapper: React.FC<ProjectileMotionSimulatorWrapperProps> = () => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isChartOpen, setIsChartOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -54,32 +54,12 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
     <>
       {/* Fullscreen Container - Rendered via Portal to document.body to overlay everything */}
       {isFullScreen && createPortal(
-        <div 
-          className="fixed z-[300] bg-black overflow-hidden"
-          style={{ 
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            width: '100vw',
-            height: '100vh',
-            paddingTop: 'env(safe-area-inset-top, 0px)',
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-            paddingLeft: 'env(safe-area-inset-left, 0px)',
-            paddingRight: 'env(safe-area-inset-right, 0px)'
-          }}
-        >
-          {/* Top Right Buttons Container - Exit Full Screen and Show Guide - Hide when chart is open on mobile */}
+        <div className="fixed inset-0 z-[300] bg-black overflow-hidden">
+          {/* Top Right Buttons Container - Exit Full Screen - Hide when chart is open on mobile */}
           <div 
-            className={`absolute z-[100] flex flex-row gap-2 items-center transition-opacity`}
-            style={{ 
-              top: `max(1rem, calc(env(safe-area-inset-top, 0px) + 1rem))`,
-              right: `max(1rem, calc(env(safe-area-inset-right, 0px) + 1rem))`,
-              display: isMobile && isChartOpen ? 'none' : 'flex' 
-            }}
+            className={`absolute top-4 right-4 z-[100] flex flex-row gap-2 items-center transition-opacity`}
+            style={{ display: isMobile && isChartOpen ? 'none' : 'flex' }}
           >
-            {/* Show Guide button will be rendered by TitrationSimulator */}
-            <div id="fullscreen-guide-button-container"></div>
             <button
               onClick={toggleFullScreen}
               className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80"
@@ -88,9 +68,9 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
               <Minimize2 className="w-6 h-6" />
             </button>
           </div>
-          <div className="w-full h-full" style={{ width: '100%', height: '100%' }}>
+          <div className="w-full h-full" style={{ width: '100vw', height: '100vh' }}>
             {/* Single persistent instance - stable key prevents unmounting when prop changes */}
-            <TitrationSimulator 
+            <ProjectileMotionSimulator 
               isEmbedded={false} 
               onChartOpenChange={handleChartOpenChange} 
             />
@@ -102,13 +82,11 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
       {/* Embedded Container - Only visible when isFullScreen is false */}
       {!isFullScreen && (
         <div>
-          {/* Top Right Buttons Container - Full Screen and Show Guide - Hide when chart is open on mobile */}
+          {/* Top Right Buttons Container - Full Screen - Hide when chart is open on mobile */}
           <div 
             className={`absolute top-4 right-4 z-10 flex flex-row gap-2 items-center ${isMobile && isChartOpen ? 'hidden' : ''} transition-opacity`}
             style={{ display: isMobile && isChartOpen ? 'none' : 'flex' }}
           >
-            {/* This will contain the Show Guide button from TitrationSimulator */}
-            <div id="embedded-guide-button-container"></div>
             <button
               onClick={toggleFullScreen}
               className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80"
@@ -117,14 +95,8 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
               <Maximize2 className="w-6 h-6" />
             </button>
           </div>
-          {/* Start/Stop Button - Overlay on Canvas */}
-          <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center pointer-events-none">
-            <div className="flex gap-2 pointer-events-auto" id="embedded-controls-container">
-              {/* Buttons will be controlled by TitrationSimulator component */}
-            </div>
-          </div>
           <style>{`
-            .embedded-titration-wrapper {
+            .embedded-projectile-wrapper {
               width: 100% !important;
               height: 100% !important;
               position: absolute;
@@ -132,66 +104,59 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
               overflow: hidden;
               min-height: 475px;
             }
-            .embedded-titration-wrapper > div {
+            .embedded-projectile-wrapper > div {
               width: 100% !important;
               height: 100% !important;
               position: absolute !important;
               inset: 0 !important;
             }
-            .embedded-titration-wrapper .h-screen {
+            .embedded-projectile-wrapper .h-screen {
               height: 100% !important;
               min-height: 100% !important;
             }
-            .embedded-titration-wrapper div[ref] {
+            .embedded-projectile-wrapper div[ref] {
               width: 100% !important;
               height: 100% !important;
               min-height: 475px !important;
             }
-            .embedded-titration-wrapper canvas {
+            .embedded-projectile-wrapper canvas {
               width: 100% !important;
               height: 100% !important;
               display: block !important;
             }
-            /* Force mobile UI in embedded mode */
-            .embedded-titration-wrapper .force-mobile-ui {
-              display: block !important;
-            }
-            .embedded-titration-wrapper .hide-in-embedded {
-              display: none !important;
-            }
             
             /* For screens 576px and below: ensure wrapper respects fixed height */
             @media (max-width: 576px) {
-              .embedded-titration-wrapper {
+              .embedded-projectile-wrapper {
                 height: 475px !important;
                 min-height: 475px !important;
                 max-height: 475px !important;
               }
-              .embedded-titration-wrapper > div {
+              .embedded-projectile-wrapper > div {
                 height: 475px !important;
                 min-height: 475px !important;
                 max-height: 475px !important;
               }
-              .embedded-titration-wrapper .h-screen {
+              .embedded-projectile-wrapper .h-screen {
                 height: 475px !important;
                 min-height: 475px !important;
                 max-height: 475px !important;
               }
-              .embedded-titration-wrapper div[ref] {
+              .embedded-projectile-wrapper div[ref] {
                 height: 475px !important;
                 min-height: 475px !important;
                 max-height: 475px !important;
               }
-              .embedded-titration-wrapper canvas {
+              .embedded-projectile-wrapper canvas {
                 height: 475px !important;
                 min-height: 475px !important;
                 max-height: 475px !important;
               }
             }
           `}</style>
-          <div className="embedded-titration-wrapper" style={{ width: '100%', height: '100%', minHeight: '475px' }}>
+          <div className="embedded-projectile-wrapper" style={{ width: '100%', height: '100%', minHeight: '475px' }}>
             {/* Single persistent instance - stable key prevents unmounting when prop changes */}
-            <TitrationSimulator 
+            <ProjectileMotionSimulator 
               isEmbedded={true} 
               onChartOpenChange={handleChartOpenChange} 
             />
@@ -202,5 +167,5 @@ const TitrationSimulatorWrapper: React.FC<TitrationSimulatorWrapperProps> = () =
   );
 };
 
-export default TitrationSimulatorWrapper;
+export default ProjectileMotionSimulatorWrapper;
 

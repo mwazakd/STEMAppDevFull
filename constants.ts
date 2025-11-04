@@ -1,7 +1,7 @@
 
 import type { Subject, Post, User } from './types';
 import { PhysicsIcon, ChemistryIcon, BiologyIcon, MathIcon } from './components/Icons';
-import ProjectileMotionSimulator from './components/simulations/ProjectileMotionSimulator';
+import ProjectileMotionSimulatorWrapper from './components/simulations/ProjectileMotionSimulatorWrapper';
 import TitrationSimulatorWrapper from './components/simulations/TitrationSimulatorWrapper';
 
 export const MOCK_USER: User = {
@@ -34,7 +34,7 @@ export const MOCK_SUBJECTS: Subject[] = [
               type: 'simulation',
               level: ['Grade 11', 'A-Level'],
               description: 'This simulation demonstrates how projectiles move under the constant force of gravity.',
-              component: ProjectileMotionSimulator,
+              component: ProjectileMotionSimulatorWrapper,
             }
           },
           { 
