@@ -61,11 +61,11 @@ const SimulationsListPage: React.FC<SimulationsListPageProps> = ({
 
     const subjectName = selectedSubject?.name || 'Subject';
 
-    return (
+  return (
       <div className="bg-[#f5f5f5] min-h-screen">
         {/* Hero Section - Subject Specific */}
         <section className={`hero bg-gradient-to-br ${subjectGradient} text-white py-16 px-6`}>
-          <div className="hero-content max-w-7xl mx-auto">
+        <div className="hero-content max-w-7xl mx-auto">
             <div className="breadcrumb flex gap-2 mb-4 text-sm opacity-90">
               <button 
                 onClick={() => onNavigate?.('home')} 
@@ -82,31 +82,31 @@ const SimulationsListPage: React.FC<SimulationsListPageProps> = ({
               </button>
               <span>›</span>
               <span>{subjectName}</span>
-            </div>
-            <h1 className="text-5xl font-bold mb-4">{subjectName} Simulations</h1>
-            <p className="text-lg opacity-95 max-w-2xl">
-              Explore interactive {subjectName.toLowerCase()} experiments and simulations. Learn by doing with our comprehensive collection of virtual labs.
-            </p>
           </div>
-        </section>
+            <h1 className="text-5xl font-bold mb-4">{subjectName} Simulations</h1>
+          <p className="text-lg opacity-95 max-w-2xl">
+              Explore interactive {subjectName.toLowerCase()} experiments and simulations. Learn by doing with our comprehensive collection of virtual labs.
+          </p>
+        </div>
+      </section>
 
-        {/* Main Content */}
-        <main className="container max-w-7xl mx-auto py-10 px-6">
-          {/* Filters */}
-          <div className="filters bg-white p-6 rounded-lg mb-8 shadow-sm">
+      {/* Main Content */}
+      <main className="container max-w-7xl mx-auto py-10 px-6">
+        {/* Filters */}
+        <div className="filters bg-white p-6 rounded-lg mb-8 shadow-sm">
             <div className="filter-row flex gap-4 flex-wrap items-end">
-              <FilterGroup label="Difficulty">
+            <FilterGroup label="Difficulty">
                 <select 
                   value={difficultyFilter}
                   onChange={(e) => setDifficultyFilter(e.target.value)}
                   className="filter-input w-full min-w-[180px] px-3.5 py-2.5 border border-[#d0d0d0] rounded text-sm focus:outline-none focus:border-[#0056d2] cursor-pointer bg-white"
                 >
-                  <option>All Levels</option>
-                  <option>Beginner</option>
-                  <option>Intermediate</option>
-                  <option>Advanced</option>
-                </select>
-              </FilterGroup>
+                <option>All Levels</option>
+                <option>Beginner</option>
+                <option>Intermediate</option>
+                <option>Advanced</option>
+              </select>
+            </FilterGroup>
               <FilterGroup label="Topic">
                 <select 
                   value={topicFilter}
@@ -118,21 +118,21 @@ const SimulationsListPage: React.FC<SimulationsListPageProps> = ({
                   <option>Thermodynamics</option>
                   <option>Organic Chemistry</option>
                   <option>Electrochemistry</option>
-                </select>
-              </FilterGroup>
-              <FilterGroup label="Duration">
+              </select>
+            </FilterGroup>
+            <FilterGroup label="Duration">
                 <select 
                   value={durationFilter}
                   onChange={(e) => setDurationFilter(e.target.value)}
                   className="filter-input w-full min-w-[180px] px-3.5 py-2.5 border border-[#d0d0d0] rounded text-sm focus:outline-none focus:border-[#0056d2] cursor-pointer bg-white"
                 >
-                  <option>Any Duration</option>
-                  <option>&lt; 15 minutes</option>
-                  <option>15-30 minutes</option>
-                  <option>&gt; 30 minutes</option>
-                </select>
-              </FilterGroup>
-              <FilterGroup label="Search">
+                <option>Any Duration</option>
+                <option>&lt; 15 minutes</option>
+                <option>15-30 minutes</option>
+                <option>&gt; 30 minutes</option>
+              </select>
+            </FilterGroup>
+            <FilterGroup label="Search">
                 <input 
                   type="text" 
                   placeholder="Search simulations..." 
@@ -140,10 +140,10 @@ const SimulationsListPage: React.FC<SimulationsListPageProps> = ({
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="filter-input w-full min-w-[180px] px-3.5 py-2.5 border border-[#d0d0d0] rounded text-sm focus:outline-none focus:border-[#0056d2] bg-white"
                 />
-              </FilterGroup>
-            </div>
+            </FilterGroup>
           </div>
-          
+        </div>
+        
           {/* Results Header */}
           <div className="results-header flex justify-between items-center mb-6">
             <div className="results-count text-sm text-gray-600">
@@ -191,11 +191,11 @@ const SimulationsListPage: React.FC<SimulationsListPageProps> = ({
                 No simulations found. Try adjusting your filters.
               </div>
             )}
-          </div>
+        </div>
 
-          {/* Pagination */}
+        {/* Pagination */}
           {filteredSimulations.length > 0 && (
-            <div className="pagination flex justify-center gap-2">
+        <div className="pagination flex justify-center gap-2">
               <button className="page-btn px-4 py-2 border border-[#d0d0d0] rounded bg-white text-sm font-medium hover:border-[#0056d2] hover:text-[#0056d2] transition-all cursor-pointer">
                 « Previous
               </button>
@@ -331,10 +331,10 @@ const SubjectPreviewSection: React.FC<{
 };
 
 const FilterGroup: React.FC<{label: string, children: React.ReactNode}> = ({ label, children }) => (
-  <div className="flex flex-col gap-2">
-    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">{label}</label>
-    {children}
-  </div>
+    <div className="flex flex-col gap-2">
+        <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">{label}</label>
+        {children}
+    </div>
 );
 
 const SimCard: React.FC<{
@@ -342,20 +342,20 @@ const SimCard: React.FC<{
   onClick: () => void;
   viewMode: 'grid' | 'list';
 }> = ({ simulation, onClick, viewMode }) => {
-  const { content } = simulation;
+    const { content } = simulation;
   const difficulty = content?.level?.includes('A-Level') || content?.level?.includes('Intermediate') 
     ? 'Intermediate' 
     : content?.level?.includes('Advanced') 
     ? 'Advanced' 
     : 'Beginner';
   
-  const difficultyClass = {
+    const difficultyClass = {
     'Beginner': 'text-[#059669]',
     'Intermediate': 'text-[#d97706]',
     'Advanced': 'text-[#dc2626]'
   }[difficulty] || 'text-[#059669]';
 
-  const subjectGradient = {
+    const subjectGradient = {
     'physics': 'from-[#f093fb] to-[#f5576c]',
     'chemistry': 'from-[#0056d2] to-[#00c6ff]',
     'biology': 'from-[#4facfe] to-[#00f2fe]',
@@ -364,7 +364,7 @@ const SimCard: React.FC<{
 
   const categoryName = simulation.subjectName || 'General';
 
-  return (
+    return (
     <div 
       onClick={onClick} 
       className={`sim-card bg-white rounded-lg overflow-hidden shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer ${
@@ -373,9 +373,9 @@ const SimCard: React.FC<{
     >
       <div className={`sim-thumbnail ${viewMode === 'list' ? 'w-64 flex-shrink-0' : 'w-full'} h-44 bg-gradient-to-br ${subjectGradient} relative`}>
         <div className={`difficulty-badge absolute top-3 right-3 bg-white/95 px-3 py-1 rounded-full text-xs font-semibold ${difficultyClass}`}>
-          {difficulty}
-        </div>
-      </div>
+                    {difficulty}
+                </div>
+            </div>
       <div className="sim-content p-5 flex-1">
         <div className="sim-category text-xs font-bold text-[#0056d2] uppercase tracking-wide mb-2">
           {categoryName}
@@ -392,9 +392,9 @@ const SimCard: React.FC<{
           </div>
           <div className="sim-meta-item flex items-center gap-1">⏱ 20 min</div>
           <div className="sim-meta-item flex items-center gap-1">👁 12.5k</div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
   );
 };
 

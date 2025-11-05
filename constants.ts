@@ -2,6 +2,7 @@
 import type { Subject, Post, User } from './types';
 import { PhysicsIcon, ChemistryIcon, BiologyIcon, MathIcon } from './components/Icons';
 import ProjectileMotionSimulatorWrapper from './components/simulations/ProjectileMotionSimulatorWrapper';
+import SimplePendulumSimulatorWrapper from './components/simulations/SimplePendulumSimulatorWrapper';
 import TitrationSimulatorWrapper from './components/simulations/TitrationSimulatorWrapper';
 
 export const MOCK_USER: User = {
@@ -39,6 +40,16 @@ export const MOCK_SUBJECTS: Subject[] = [
           },
           { 
             id: 'nm-3', 
+            title: 'Simple Pendulum', 
+            content: {
+              type: 'simulation',
+              level: ['Grade 11', 'A-Level'],
+              description: 'Explore the motion of a simple pendulum with adjustable parameters. Observe how length, gravity, and air resistance affect the period and damping of oscillations.',
+              component: SimplePendulumSimulatorWrapper,
+            }
+          },
+          { 
+            id: 'nm-4', 
             title: 'Mechanics Quiz', 
             content: {
               type: 'quiz',

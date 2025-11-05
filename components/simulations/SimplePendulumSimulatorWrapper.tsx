@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import ProjectileMotionSimulator from './ProjectileMotionSimulator';
+import SimplePendulumSimulator from './SimplePendulumSimulator';
 import { Maximize2, Minimize2 } from 'lucide-react';
 
-interface ProjectileMotionSimulatorWrapperProps {
+interface SimplePendulumSimulatorWrapperProps {
   // Props can be added here if needed in the future
 }
 
-const ProjectileMotionSimulatorWrapper: React.FC<ProjectileMotionSimulatorWrapperProps> = () => {
+const SimplePendulumSimulatorWrapper: React.FC<SimplePendulumSimulatorWrapperProps> = () => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isChartOpen, setIsChartOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
@@ -93,8 +93,8 @@ const ProjectileMotionSimulatorWrapper: React.FC<ProjectileMotionSimulatorWrappe
           </div>
           <div className="w-full h-full" style={{ width: '100%', height: '100%' }}>
             {/* Single persistent instance - stable key prevents unmounting when prop changes */}
-            <ProjectileMotionSimulator 
-              key="persistent-projectile-simulator"
+            <SimplePendulumSimulator 
+              key="persistent-pendulum-simulator"
               isEmbedded={false} 
               onChartOpenChange={handleChartOpenChange}
               onTutorialOpenChange={handleTutorialOpenChange}
@@ -104,9 +104,9 @@ const ProjectileMotionSimulatorWrapper: React.FC<ProjectileMotionSimulatorWrappe
         document.body
       )}
 
-      {/* Embedded Container - Only visible when isFullScreen is false */}
+      {/* Embedded Container */}
       {!isFullScreen && (
-        <div>
+        <div className="relative w-full" style={{ width: '100%', minHeight: '475px' }}>
           {/* Top Right Buttons Container - Full Screen - Hide when chart or tutorial is open */}
           <div 
             className={`absolute top-4 right-4 z-10 flex flex-row gap-2 items-center ${(isMobile && isChartOpen) || isTutorialOpen ? 'hidden' : ''} transition-opacity`}
@@ -114,20 +114,22 @@ const ProjectileMotionSimulatorWrapper: React.FC<ProjectileMotionSimulatorWrappe
           >
             <button
               onClick={toggleFullScreen}
-              className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80"
+              className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80 bg-black bg-opacity-70 backdrop-blur-sm"
               aria-label="View Full Screen"
             >
               <Maximize2 className="w-6 h-6" />
             </button>
           </div>
-          {/* Start/Stop Button - Overlay on Canvas */}
+          
+          {/* Embedded Controls Container */}
           <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center pointer-events-none">
             <div className="flex gap-2 pointer-events-auto" id="embedded-controls-container">
-              {/* Buttons will be controlled by ProjectileMotionSimulator component */}
+              {/* Buttons will be controlled by SimplePendulumSimulator component */}
             </div>
           </div>
+          
           <style>{`
-            .embedded-projectile-wrapper {
+            .embedded-pendulum-wrapper {
               width: 100% !important;
               height: 100% !important;
               position: absolute;
@@ -135,60 +137,59 @@ const ProjectileMotionSimulatorWrapper: React.FC<ProjectileMotionSimulatorWrappe
               overflow: hidden;
               min-height: 475px;
             }
-            .embedded-projectile-wrapper > div {
+            .embedded-pendulum-wrapper > div {
               width: 100% !important;
               height: 100% !important;
               position: absolute !important;
               inset: 0 !important;
             }
-            .embedded-projectile-wrapper .h-screen {
+            .embedded-pendulum-wrapper .h-screen {
               height: 100% !important;
               min-height: 100% !important;
             }
-            .embedded-projectile-wrapper div[ref] {
+            .embedded-pendulum-wrapper div[ref] {
               width: 100% !important;
               height: 100% !important;
               min-height: 475px !important;
             }
-            .embedded-projectile-wrapper canvas {
+            .embedded-pendulum-wrapper canvas {
               width: 100% !important;
               height: 100% !important;
               display: block !important;
             }
             
-            /* For screens 576px and below: ensure wrapper respects fixed height */
             @media (max-width: 576px) {
-              .embedded-projectile-wrapper {
+              .embedded-pendulum-wrapper {
                 height: 475px !important;
                 min-height: 475px !important;
                 max-height: 475px !important;
               }
-              .embedded-projectile-wrapper > div {
+              .embedded-pendulum-wrapper > div {
                 height: 475px !important;
                 min-height: 475px !important;
                 max-height: 475px !important;
               }
-              .embedded-projectile-wrapper .h-screen {
+              .embedded-pendulum-wrapper .h-screen {
                 height: 475px !important;
                 min-height: 475px !important;
                 max-height: 475px !important;
               }
-              .embedded-projectile-wrapper div[ref] {
+              .embedded-pendulum-wrapper div[ref] {
                 height: 475px !important;
                 min-height: 475px !important;
                 max-height: 475px !important;
               }
-              .embedded-projectile-wrapper canvas {
+              .embedded-pendulum-wrapper canvas {
                 height: 475px !important;
                 min-height: 475px !important;
                 max-height: 475px !important;
               }
             }
           `}</style>
-          <div className="embedded-projectile-wrapper" style={{ width: '100%', height: '100%', minHeight: '475px' }}>
-            {/* Single persistent instance - stable key prevents unmounting when prop changes */}
-            <ProjectileMotionSimulator 
-              key="persistent-projectile-simulator"
+          
+          <div className="embedded-pendulum-wrapper" style={{ width: '100%', height: '100%', minHeight: '475px' }}>
+            <SimplePendulumSimulator 
+              key="persistent-pendulum-simulator"
               isEmbedded={true} 
               onChartOpenChange={handleChartOpenChange}
               onTutorialOpenChange={handleTutorialOpenChange}
@@ -200,5 +201,6 @@ const ProjectileMotionSimulatorWrapper: React.FC<ProjectileMotionSimulatorWrappe
   );
 };
 
-export default ProjectileMotionSimulatorWrapper;
+export default SimplePendulumSimulatorWrapper;
+
 

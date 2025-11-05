@@ -31,7 +31,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Sidebar starts below header (64px = h-16) on both mobile and desktop
   const topPosition = 'top-16';
   const sidebarHeight = 'h-[calc(100vh-4rem)]';
-  
+
   return (
     <aside className={`fixed ${topPosition} left-0 ${sidebarHeight} bg-white border-r border-gray-200 transition-transform duration-300 z-[200] ${isOpen ? 'w-[280px]' : '-translate-x-full'} ${!isOpen ? 'w-[280px]' : ''}`}>
       <div className="h-full flex flex-col p-4">
