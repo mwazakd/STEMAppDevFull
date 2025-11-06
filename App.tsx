@@ -25,7 +25,25 @@ const getStateFromURL = (): { view: View; simulationId: string | null; subject: 
 };
 
 const updateURL = (view: View, simulationId: string | null, subject: string | null = null) => {
+  const currentParams = new URLSearchParams(window.location.search);
+  
+  // Preserve non-state parameters (like admin=true)
+  const preservedParams = ['admin'];
+  const preserved = new Map<string, string>();
+  preservedParams.forEach(key => {
+    const value = currentParams.get(key);
+    if (value) preserved.set(key, value);
+  });
+  
+  // Create new params object
   const params = new URLSearchParams();
+  
+  // Add preserved parameters first
+  preserved.forEach((value, key) => {
+    params.set(key, value);
+  });
+  
+  // Add state parameters
   if (view !== 'home') {
     params.set('view', view);
   }

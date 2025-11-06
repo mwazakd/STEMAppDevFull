@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2024-01-01T00:00:00Z",
+  "positions": [
+    {
+      "simulationId": "simple-pendulum",
+      "cameraAngle": {
+        "theta": 0,
+        "phi": 1.0471975511965976
+      },
+      "cameraDistance": 5,
+      "panOffset": {
+        "x": 0,
+        "y": 1.5,
+        "z": 0
+      },
+      "description": "Default camera position for Simple Pendulum simulation - optimal view of oscillations"
+    }
+  ]
+}
+

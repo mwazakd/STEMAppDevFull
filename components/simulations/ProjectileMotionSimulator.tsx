@@ -1,8 +1,16 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
-import { Play, Pause, RotateCcw, Target, Info, Settings, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Pause, RotateCcw, Target, Info, Settings, BarChart3, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { 
+  getDefaultCameraPosition, 
+  getSavedCameraPosition,
+  isAdmin,
+  clearCameraPositionsCache
+} from '../../services/cameraPositionService';
+import type { CameraPosition } from '../../types/cameraPosition';
+import CameraPositionAdmin from '../admin/CameraPositionAdmin';
 
 interface ProjectileMotionSimulatorProps {
   isEmbedded?: boolean;
@@ -53,6 +61,7 @@ const persistentState = {
   chartWidth: 384,
   isResizing: false,
   showTutorial: false,
+  showAdminCamera: false,
   currentChartIndex: 0,
   verticalVelocityData: [] as VelocityDataPoint[],
   horizontalVelocityData: [] as VelocityDataPoint[],
@@ -90,7 +99,12 @@ export default function ProjectileMotionSimulator({
   const [chartWidth, setChartWidth] = useState(() => persistentState.chartWidth);
   const [isResizing, setIsResizing] = useState(() => persistentState.isResizing);
   const [showTutorial, setShowTutorial] = useState(() => persistentState.showTutorial);
+  const [showAdminCamera, setShowAdminCamera] = useState(() => persistentState.showAdminCamera);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  
+  // Load default camera position from config (admin-controlled)
+  const [defaultCameraPosition, setDefaultCameraPosition] = useState<CameraPosition | null>(null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
   
   // Chart Data Collection (Phase 2)
   const [verticalVelocityData, setVerticalVelocityData] = useState<VelocityDataPoint[]>(() => [...persistentState.verticalVelocityData]);
@@ -286,6 +300,52 @@ export default function ProjectileMotionSimulator({
   const panOffsetRef = useRef(new THREE.Vector3(0, 0, 0)); // Initial look-at point - will be updated
   const isPanningRef = useRef(false);
   const isMiddleMouseRef = useRef(false);
+  
+  // Camera state for admin component (updates periodically to reflect current camera position)
+  const [cameraStateForAdmin, setCameraStateForAdmin] = useState({
+    cameraAngle: { ...cameraAngleRef.current },
+    cameraDistance: cameraDistanceRef.current,
+    panOffset: panOffsetRef.current.clone()
+  });
+  
+  // Update camera state for admin component periodically (only when admin is active)
+  useEffect(() => {
+    if (!isAdminUser || !sceneReady) return;
+    
+    const interval = setInterval(() => {
+      setCameraStateForAdmin({
+        cameraAngle: { ...cameraAngleRef.current },
+        cameraDistance: cameraDistanceRef.current,
+        panOffset: panOffsetRef.current.clone()
+      });
+    }, 100); // Update every 100ms
+    
+    return () => clearInterval(interval);
+  }, [isAdminUser, sceneReady]);
+  
+  // Load default camera position and check admin status
+  useEffect(() => {
+    // Check admin status
+    setIsAdminUser(isAdmin());
+    
+    // Load default camera position
+    const loadDefaultPosition = async () => {
+      // Check for saved position (admin override) first
+      const savedPosition = getSavedCameraPosition('projectile-motion');
+      if (savedPosition) {
+        setDefaultCameraPosition(savedPosition);
+        return;
+      }
+      
+      // Load from config file
+      const position = await getDefaultCameraPosition('projectile-motion');
+      if (position) {
+        setDefaultCameraPosition(position);
+      }
+    };
+    
+    loadDefaultPosition();
+  }, []);
   
   // Touch handling refs
   const touchDownRef = useRef(false);
@@ -1417,6 +1477,53 @@ export default function ProjectileMotionSimulator({
             </button>
           </div>
         </div>
+
+        {/* Admin Camera Button - Top Right (Admin Only) - Just before minimize button */}
+        {!isEmbedded && isAdminUser && sceneReady && (
+          <div 
+            className="absolute z-[100] flex flex-row gap-2 items-center"
+            style={{ 
+              top: `max(1rem, calc(env(safe-area-inset-top, 0px) + 1rem))`,
+              right: `calc(max(1rem, calc(env(safe-area-inset-right, 0px) + 1rem)) + 60px)`
+            }}
+          >
+            <button
+              onClick={() => {
+                persistentState.showAdminCamera = !showAdminCamera;
+                setShowAdminCamera(!showAdminCamera);
+              }}
+              className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80 bg-black bg-opacity-70 backdrop-blur-sm"
+              aria-label="Admin Camera Settings"
+            >
+              <Camera className="w-6 h-6" />
+            </button>
+          </div>
+        )}
+
+        {/* Admin Camera Position Panel - Top Right (Admin Only) */}
+        {isAdminUser && sceneReady && showAdminCamera && (
+          <CameraPositionAdmin
+            simulationId="projectile-motion"
+            cameraAngle={cameraStateForAdmin.cameraAngle}
+            cameraDistance={cameraStateForAdmin.cameraDistance}
+            panOffset={cameraStateForAdmin.panOffset}
+            onSave={(position) => {
+              // Update default position state when saved
+              setDefaultCameraPosition(position);
+              // Clear cache to force reload
+              clearCameraPositionsCache();
+              // Reload default position
+              const savedPosition = getSavedCameraPosition('projectile-motion');
+              if (savedPosition) {
+                setDefaultCameraPosition(savedPosition);
+              }
+            }}
+            onClose={() => {
+              persistentState.showAdminCamera = false;
+              setShowAdminCamera(false);
+            }}
+          />
+        )}
 
         {/* Floating Start/Stop and Reset Buttons - Bottom Center (Fullscreen only) */}
         {!isEmbedded && !showChart && !showChartSidebar && !showTutorial && (

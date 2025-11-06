@@ -1,10 +1,18 @@
 import { useState, useEffect, useRef, useMemo, createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Play, Pause, RotateCcw, Info, Beaker } from 'lucide-react';
+import { Play, Pause, RotateCcw, Info, Beaker, Camera } from 'lucide-react';
 import * as THREE from 'three';
 import IntegratedGlassmorphismBurette from './titration/IntegratedGlassmorphismBurette';
 import IntegratedGlassmorphismConicalFlask from './titration/IntegratedGlassmorphismConicalFlask';
+import { 
+  getDefaultCameraPosition, 
+  getSavedCameraPosition,
+  isAdmin,
+  clearCameraPositionsCache
+} from '../../services/cameraPositionService';
+import type { CameraPosition } from '../../types/cameraPosition';
+import CameraPositionAdmin from '../admin/CameraPositionAdmin';
 
 // Module-level storage for Three.js objects - persists across component unmounts/remounts
 const persistentThreeJS = {
@@ -34,6 +42,7 @@ const persistentState = {
   chartWidth: 384,
   isResizing: false,
   isInitialized: false,
+  showAdminCamera: false,
 };
 
 const calculatePH = (concentration: number, volume: number, type: string, titrantConc: number, titrantVol: number, titrantType: string) => {
@@ -109,9 +118,14 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
   const [showChartSidebar, setShowChartSidebar] = useState(() => persistentState.showChartSidebar);
   const [chartWidth, setChartWidth] = useState(() => persistentState.chartWidth);
   const [isResizing, setIsResizing] = useState(() => persistentState.isResizing);
+  const [showAdminCamera, setShowAdminCamera] = useState(() => persistentState.showAdminCamera);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const chartResizeRef = useRef<HTMLDivElement>(null);
   const [sceneReady, setSceneReady] = useState(() => persistentThreeJS.isInitialized);
+  
+  // Load default camera position from config (admin-controlled)
+  const [defaultCameraPosition, setDefaultCameraPosition] = useState<CameraPosition | null>(null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
   
   // Sync state changes to persistent storage
   useEffect(() => {
@@ -198,10 +212,56 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
   const autoRotateRef = useRef(0);
   const userHasRotatedRef = useRef(false);
   const glassmorphismBuretteRef = useRef<THREE.Group | null>(null);
+  
+  // Camera state for admin component (updates periodically to reflect current camera position)
+  const [cameraStateForAdmin, setCameraStateForAdmin] = useState({
+    cameraAngle: { ...cameraAngleRef.current },
+    cameraDistance: cameraDistanceRef.current,
+    panOffset: panOffsetRef.current.clone()
+  });
+  
+  // Update camera state for admin component periodically (only when admin is active)
+  useEffect(() => {
+    if (!isAdminUser || !sceneReady) return;
+    
+    const interval = setInterval(() => {
+      setCameraStateForAdmin({
+        cameraAngle: { ...cameraAngleRef.current },
+        cameraDistance: cameraDistanceRef.current,
+        panOffset: panOffsetRef.current.clone()
+      });
+    }, 100); // Update every 100ms
+    
+    return () => clearInterval(interval);
+  }, [isAdminUser, sceneReady]);
+  
+  // Load default camera position and check admin status
+  useEffect(() => {
+    // Check admin status
+    setIsAdminUser(isAdmin());
+    
+    // Load default camera position
+    const loadDefaultPosition = async () => {
+      // Check for saved position (admin override) first
+      const savedPosition = getSavedCameraPosition('titration');
+      if (savedPosition) {
+        setDefaultCameraPosition(savedPosition);
+        return;
+      }
+      
+      // Load from config file
+      const position = await getDefaultCameraPosition('titration');
+      if (position) {
+        setDefaultCameraPosition(position);
+      }
+    };
+    
+    loadDefaultPosition();
+  }, []);
+  
   const conicalFlaskRef = useRef<THREE.Group | null>(null);
   
-  // Panning refs - dynamic orbit center
-  const panOffsetRef = useRef(new THREE.Vector3(0, 2, 0)); // Initial look-at point (0, 2, 0)
+  // Panning refs - dynamic orbit center (panOffsetRef already defined above)
   const isPanningRef = useRef(false);
   const isMiddleMouseRef = useRef(false);
   
@@ -1583,6 +1643,53 @@ export default function TitrationSimulator({ isEmbedded = false, onChartOpenChan
                 </div>
               </div>
             </div>
+          )}
+          
+          {/* Admin Camera Button - Top Right (Admin Only) - Just before minimize button */}
+          {!isEmbedded && isAdminUser && sceneReady && (
+            <div 
+              className="absolute z-[100] flex flex-row gap-2 items-center"
+              style={{ 
+                top: `max(1rem, calc(env(safe-area-inset-top, 0px) + 1rem))`,
+                right: `calc(max(1rem, calc(env(safe-area-inset-right, 0px) + 1rem)) + 60px)`
+              }}
+            >
+              <button
+                onClick={() => {
+                  persistentState.showAdminCamera = !showAdminCamera;
+                  setShowAdminCamera(!showAdminCamera);
+                }}
+                className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80 bg-black bg-opacity-70 backdrop-blur-sm"
+                aria-label="Admin Camera Settings"
+              >
+                <Camera className="w-6 h-6" />
+              </button>
+            </div>
+          )}
+
+          {/* Admin Camera Position Panel - Top Right (Admin Only) */}
+          {isAdminUser && sceneReady && showAdminCamera && (
+            <CameraPositionAdmin
+              simulationId="titration"
+              cameraAngle={cameraStateForAdmin.cameraAngle}
+              cameraDistance={cameraStateForAdmin.cameraDistance}
+              panOffset={cameraStateForAdmin.panOffset}
+              onSave={(position) => {
+                // Update default position state when saved
+                setDefaultCameraPosition(position);
+                // Clear cache to force reload
+                clearCameraPositionsCache();
+                // Reload default position
+                const savedPosition = getSavedCameraPosition('titration');
+                if (savedPosition) {
+                  setDefaultCameraPosition(savedPosition);
+                }
+              }}
+              onClose={() => {
+                persistentState.showAdminCamera = false;
+                setShowAdminCamera(false);
+              }}
+            />
           )}
           
           {/* Floating Start Button - Overlay on Canvas - Only show in full view (not embedded) */}

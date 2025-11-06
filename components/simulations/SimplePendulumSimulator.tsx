@@ -1,7 +1,15 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
-import { Play, Pause, RotateCcw, Target, Info, Settings, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Pause, RotateCcw, Target, Info, Settings, BarChart3, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { 
+  getDefaultCameraPosition, 
+  getSavedCameraPosition,
+  isAdmin,
+  clearCameraPositionsCache
+} from '../../services/cameraPositionService';
+import type { CameraPosition } from '../../types/cameraPosition';
+import CameraPositionAdmin from '../admin/CameraPositionAdmin';
 
 const PIVOT_HEIGHT = 2.5; // Fixed height of the pivot point in meters
 
@@ -82,6 +90,7 @@ const persistentState = {
   chartView: 'time' as 'time' | 'displacement',
   showConfig: false,
   showChart: false,
+  showAdminCamera: false,
   showChartSidebar: false,
   chartWidth: 384,
   isResizing: false,
@@ -212,6 +221,7 @@ export default function SimplePendulumSimulator({
   // UI Overlay States
   const [showConfig, setShowConfig] = useState(() => persistentState.showConfig);
   const [showChart, setShowChart] = useState(() => persistentState.showChart);
+  const [showAdminCamera, setShowAdminCamera] = useState(() => persistentState.showAdminCamera);
   const [showChartSidebar, setShowChartSidebar] = useState(() => persistentState.showChartSidebar);
   const [chartWidth, setChartWidth] = useState(() => persistentState.chartWidth);
   const [isResizing, setIsResizing] = useState(() => persistentState.isResizing);
@@ -219,6 +229,56 @@ export default function SimplePendulumSimulator({
   const [currentChartIndex, setCurrentChartIndex] = useState(() => persistentState.currentChartIndex);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [sceneReady, setSceneReady] = useState(() => persistentThreeJS.isInitialized);
+  
+  // Load default camera position from config (admin-controlled)
+  const [defaultCameraPosition, setDefaultCameraPosition] = useState<CameraPosition | null>(null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  
+  // Camera state for admin component (updates periodically to reflect current camera position)
+  const [cameraStateForAdmin, setCameraStateForAdmin] = useState({
+    cameraAngle: { ...persistentThreeJS.cameraAngle },
+    cameraDistance: persistentThreeJS.cameraDistance,
+    panOffset: persistentThreeJS.panOffset.clone()
+  });
+  
+  // Update camera state for admin component periodically (only when admin is active)
+  useEffect(() => {
+    if (!isAdminUser || !sceneReady) return;
+    
+    const interval = setInterval(() => {
+      setCameraStateForAdmin({
+        cameraAngle: { ...cameraAngleRef.current },
+        cameraDistance: cameraDistanceRef.current,
+        panOffset: panOffsetRef.current.clone()
+      });
+    }, 100); // Update every 100ms
+    
+    return () => clearInterval(interval);
+  }, [isAdminUser, sceneReady]);
+  
+  // Load default camera position and check admin status
+  useEffect(() => {
+    // Check admin status
+    setIsAdminUser(isAdmin());
+    
+    // Load default camera position
+    const loadDefaultPosition = async () => {
+      // Check for saved position (admin override) first
+      const savedPosition = getSavedCameraPosition('simple-pendulum');
+      if (savedPosition) {
+        setDefaultCameraPosition(savedPosition);
+        return;
+      }
+      
+      // Load from config file
+      const position = await getDefaultCameraPosition('simple-pendulum');
+      if (position) {
+        setDefaultCameraPosition(position);
+      }
+    };
+    
+    loadDefaultPosition();
+  }, []);
   
   // Camera control refs - initialize from persistent storage
   const mouseDownRef = useRef(false);
@@ -393,12 +453,30 @@ export default function SimplePendulumSimulator({
         cameraRef.current = persistentThreeJS.camera;
         rendererRef.current = persistentThreeJS.renderer;
         
-        // Restore camera state from persistent storage
-        cameraAngleRef.current = { ...persistentThreeJS.cameraAngle };
-        cameraDistanceRef.current = persistentThreeJS.cameraDistance;
-        panOffsetRef.current = persistentThreeJS.panOffset.clone();
+        // Check if default position should be applied (if camera hasn't been customized)
+        // This ensures new users see the admin-set default position
+        if (defaultCameraPosition && !userHasRotatedRef.current) {
+          // Apply default camera position (admin-controlled)
+          cameraAngleRef.current = { ...defaultCameraPosition.cameraAngle };
+          cameraDistanceRef.current = defaultCameraPosition.cameraDistance;
+          panOffsetRef.current = new THREE.Vector3(
+            defaultCameraPosition.panOffset.x,
+            defaultCameraPosition.panOffset.y,
+            defaultCameraPosition.panOffset.z
+          );
+          
+          // Update persistent storage with default position
+          persistentThreeJS.cameraAngle = { ...cameraAngleRef.current };
+          persistentThreeJS.cameraDistance = cameraDistanceRef.current;
+          persistentThreeJS.panOffset = panOffsetRef.current.clone();
+        } else {
+          // Restore camera state from persistent storage (user's custom position)
+          cameraAngleRef.current = { ...persistentThreeJS.cameraAngle };
+          cameraDistanceRef.current = persistentThreeJS.cameraDistance;
+          panOffsetRef.current = persistentThreeJS.panOffset.clone();
+        }
         
-        // Restore camera position based on saved state
+        // Restore camera position based on current state
         const lookAtPoint = panOffsetRef.current;
         const radius = cameraDistanceRef.current;
         persistentThreeJS.camera.position.x = lookAtPoint.x + radius * Math.sin(cameraAngleRef.current.phi) * Math.cos(cameraAngleRef.current.theta);
@@ -1573,6 +1651,53 @@ export default function SimplePendulumSimulator({
             <span className="font-semibold text-xs">Simple Pendulum Simulator</span>
           </div>
         </div>
+
+        {/* Admin Camera Button - Top Right (Admin Only) - Just before minimize button */}
+        {!isEmbedded && isAdminUser && sceneReady && (
+          <div 
+            className="absolute z-[100] flex flex-row gap-2 items-center"
+            style={{ 
+              top: `max(1rem, calc(env(safe-area-inset-top, 0px) + 1rem))`,
+              right: `calc(max(1rem, calc(env(safe-area-inset-right, 0px) + 1rem)) + 60px)`
+            }}
+          >
+            <button
+              onClick={() => {
+                persistentState.showAdminCamera = !showAdminCamera;
+                setShowAdminCamera(!showAdminCamera);
+              }}
+              className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80 bg-black bg-opacity-70 backdrop-blur-sm"
+              aria-label="Admin Camera Settings"
+            >
+              <Camera className="w-6 h-6" />
+            </button>
+          </div>
+        )}
+
+        {/* Admin Camera Position Panel - Top Right (Admin Only) */}
+        {isAdminUser && sceneReady && showAdminCamera && (
+          <CameraPositionAdmin
+            simulationId="simple-pendulum"
+            cameraAngle={cameraStateForAdmin.cameraAngle}
+            cameraDistance={cameraStateForAdmin.cameraDistance}
+            panOffset={cameraStateForAdmin.panOffset}
+            onSave={(position) => {
+              // Update default position state when saved
+              setDefaultCameraPosition(position);
+              // Clear cache to force reload
+              clearCameraPositionsCache();
+              // Reload default position
+              const savedPosition = getSavedCameraPosition('simple-pendulum');
+              if (savedPosition) {
+                setDefaultCameraPosition(savedPosition);
+              }
+            }}
+            onClose={() => {
+              persistentState.showAdminCamera = false;
+              setShowAdminCamera(false);
+            }}
+          />
+        )}
 
         {/* Controls Overlay - Top Left Stack */}
         <div className="absolute top-16 left-4 z-10">

@@ -23,7 +23,6 @@ interface YourSimulatorWrapperProps {
 const YourSimulatorWrapper: React.FC<YourSimulatorWrapperProps> = () => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isChartOpen, setIsChartOpen] = useState(false);
-  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   
   // Track window size to detect mobile
@@ -38,10 +37,6 @@ const YourSimulatorWrapper: React.FC<YourSimulatorWrapperProps> = () => {
   
   const handleChartOpenChange = (isOpen: boolean) => {
     setIsChartOpen(isOpen);
-  };
-  
-  const handleTutorialOpenChange = (isOpen: boolean) => {
-    setIsTutorialOpen(isOpen);
   };
 
   const toggleFullScreen = () => {
@@ -60,15 +55,17 @@ const YourSimulatorWrapper: React.FC<YourSimulatorWrapperProps> = () => {
       }
     };
 
+    // Use capture phase to ensure we catch the event early
     window.addEventListener('keydown', handleEscKey, true);
     return () => {
       window.removeEventListener('keydown', handleEscKey, true);
     };
   }, [isFullScreen]);
 
+  // Single persistent instance - render inside containers but with stable key to prevent unmounting
   return (
     <>
-      {/* Fullscreen Container - Rendered via Portal to document.body */}
+      {/* Fullscreen Container - Rendered via Portal to document.body to overlay everything */}
       {isFullScreen && createPortal(
         <div 
           className="fixed z-[300] bg-black overflow-hidden"
@@ -85,15 +82,17 @@ const YourSimulatorWrapper: React.FC<YourSimulatorWrapperProps> = () => {
             paddingRight: 'env(safe-area-inset-right, 0px)'
           }}
         >
-          {/* Top Right Buttons Container - Exit Full Screen - Hide when chart or tutorial is open */}
+          {/* Top Right Buttons Container - Exit Full Screen and Show Guide - Hide when chart is open on mobile */}
           <div 
             className={`absolute z-[100] flex flex-row gap-2 items-center transition-opacity`}
             style={{ 
               top: `max(1rem, calc(env(safe-area-inset-top, 0px) + 1rem))`,
               right: `max(1rem, calc(env(safe-area-inset-right, 0px) + 1rem))`,
-              display: (isMobile && isChartOpen) || isTutorialOpen ? 'none' : 'flex' 
+              display: isMobile && isChartOpen ? 'none' : 'flex' 
             }}
           >
+            {/* Show Guide button will be rendered by YourSimulator */}
+            <div id="fullscreen-guide-button-container"></div>
             <button
               onClick={toggleFullScreen}
               className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80"
@@ -103,25 +102,26 @@ const YourSimulatorWrapper: React.FC<YourSimulatorWrapperProps> = () => {
             </button>
           </div>
           <div className="w-full h-full" style={{ width: '100%', height: '100%' }}>
+            {/* Single persistent instance - stable key prevents unmounting when prop changes */}
             <YourSimulator 
-              key="persistent-your-simulator"
               isEmbedded={false} 
-              onChartOpenChange={handleChartOpenChange}
-              onTutorialOpenChange={handleTutorialOpenChange}
+              onChartOpenChange={handleChartOpenChange} 
             />
           </div>
         </div>,
         document.body
       )}
 
-      {/* Embedded Container */}
+      {/* Embedded Container - Only visible when isFullScreen is false */}
       {!isFullScreen && (
         <div>
-          {/* Top Right Buttons Container - Full Screen - Hide when chart or tutorial is open */}
+          {/* Top Right Buttons Container - Full Screen and Show Guide - Hide when chart is open on mobile */}
           <div 
-            className={`absolute top-4 right-4 z-10 flex flex-row gap-2 items-center ${(isMobile && isChartOpen) || isTutorialOpen ? 'hidden' : ''} transition-opacity`}
-            style={{ display: (isMobile && isChartOpen) || isTutorialOpen ? 'none' : 'flex' }}
+            className={`absolute top-4 right-4 z-10 flex flex-row gap-2 items-center ${isMobile && isChartOpen ? 'hidden' : ''} transition-opacity`}
+            style={{ display: isMobile && isChartOpen ? 'none' : 'flex' }}
           >
+            {/* This will contain the Show Guide button from YourSimulator */}
+            <div id="embedded-guide-button-container"></div>
             <button
               onClick={toggleFullScreen}
               className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80"
@@ -130,8 +130,7 @@ const YourSimulatorWrapper: React.FC<YourSimulatorWrapperProps> = () => {
               <Maximize2 className="w-6 h-6" />
             </button>
           </div>
-          
-          {/* Embedded Controls Container */}
+          {/* Start/Stop Button - Overlay on Canvas */}
           <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center pointer-events-none">
             <div className="flex gap-2 pointer-events-auto" id="embedded-controls-container">
               {/* Buttons will be controlled by YourSimulator component */}
@@ -167,7 +166,15 @@ const YourSimulatorWrapper: React.FC<YourSimulatorWrapperProps> = () => {
               height: 100% !important;
               display: block !important;
             }
+            /* Force mobile UI in embedded mode */
+            .embedded-your-wrapper .force-mobile-ui {
+              display: block !important;
+            }
+            .embedded-your-wrapper .hide-in-embedded {
+              display: none !important;
+            }
             
+            /* For screens 576px and below: ensure wrapper respects fixed height */
             @media (max-width: 576px) {
               .embedded-your-wrapper {
                 height: 475px !important;
@@ -198,8 +205,8 @@ const YourSimulatorWrapper: React.FC<YourSimulatorWrapperProps> = () => {
           `}</style>
           
           <div className="embedded-your-wrapper" style={{ width: '100%', height: '100%', minHeight: '475px' }}>
+            {/* Single persistent instance - stable key prevents unmounting when prop changes */}
             <YourSimulator 
-              key="persistent-your-simulator"
               isEmbedded={true} 
               onChartOpenChange={handleChartOpenChange} 
             />

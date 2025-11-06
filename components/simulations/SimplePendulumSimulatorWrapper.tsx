@@ -104,9 +104,9 @@ const SimplePendulumSimulatorWrapper: React.FC<SimplePendulumSimulatorWrapperPro
         document.body
       )}
 
-      {/* Embedded Container */}
+      {/* Embedded Container - Only visible when isFullScreen is false */}
       {!isFullScreen && (
-        <div className="relative w-full" style={{ width: '100%', minHeight: '475px' }}>
+        <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '475px' }}>
           {/* Top Right Buttons Container - Full Screen - Hide when chart or tutorial is open */}
           <div 
             className={`absolute top-4 right-4 z-10 flex flex-row gap-2 items-center ${(isMobile && isChartOpen) || isTutorialOpen ? 'hidden' : ''} transition-opacity`}
@@ -114,20 +114,18 @@ const SimplePendulumSimulatorWrapper: React.FC<SimplePendulumSimulatorWrapperPro
           >
             <button
               onClick={toggleFullScreen}
-              className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80 bg-black bg-opacity-70 backdrop-blur-sm"
+              className="text-white px-4 py-2 rounded-lg font-semibold transition shadow-lg flex items-center justify-center hover:opacity-80"
               aria-label="View Full Screen"
             >
               <Maximize2 className="w-6 h-6" />
             </button>
           </div>
-          
-          {/* Embedded Controls Container */}
+          {/* Start/Stop Button - Overlay on Canvas */}
           <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center pointer-events-none">
             <div className="flex gap-2 pointer-events-auto" id="embedded-controls-container">
               {/* Buttons will be controlled by SimplePendulumSimulator component */}
             </div>
           </div>
-          
           <style>{`
             .embedded-pendulum-wrapper {
               width: 100% !important;
@@ -158,6 +156,7 @@ const SimplePendulumSimulatorWrapper: React.FC<SimplePendulumSimulatorWrapperPro
               display: block !important;
             }
             
+            /* For screens 576px and below: ensure wrapper respects fixed height */
             @media (max-width: 576px) {
               .embedded-pendulum-wrapper {
                 height: 475px !important;
@@ -186,8 +185,8 @@ const SimplePendulumSimulatorWrapper: React.FC<SimplePendulumSimulatorWrapperPro
               }
             }
           `}</style>
-          
           <div className="embedded-pendulum-wrapper" style={{ width: '100%', height: '100%', minHeight: '475px' }}>
+            {/* Single persistent instance - stable key prevents unmounting when prop changes */}
             <SimplePendulumSimulator 
               key="persistent-pendulum-simulator"
               isEmbedded={true} 
